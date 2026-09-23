@@ -118,7 +118,18 @@ namespace WSEngine
                 "  raw_id_max INTEGER," +
                 "  label TEXT" +
                 ");" +
-                "CREATE INDEX IF NOT EXISTS ix_bouts_session ON bouts(session_id);";
+                "CREATE INDEX IF NOT EXISTS ix_bouts_session ON bouts(session_id);" +
+                "CREATE TABLE IF NOT EXISTS class_metrics (" +
+                "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "  session_id INTEGER NOT NULL," +
+                "  bout_id INTEGER," +
+                "  ts INTEGER NOT NULL," +
+                "  participantes INTEGER NOT NULL," +
+                "  resolvidos INTEGER NOT NULL," +
+                "  pct REAL NOT NULL," +
+                "  latencia_mediana_ms INTEGER NOT NULL" +
+                ");" +
+                "CREATE INDEX IF NOT EXISTS ix_class_metrics_session ON class_metrics(session_id);";
             using (var cmd = _conn.CreateCommand())
             {
                 cmd.CommandText = sql;
@@ -455,6 +466,25 @@ namespace WSEngine
             }
 
             return UpsertEntitiesBatch(byId.Values);
+        }
+
+        public void InsertClassMetric(long boutId, int participantes, int resolvidos, double pct, long latenciaMedianaMs)
+        {
+            if (_currentSessionId <= 0) return;
+            using (var cmd = _conn.CreateCommand())
+            {
+                cmd.CommandText =
+                    "INSERT INTO class_metrics(session_id, bout_id, ts, participantes, resolvidos, pct, latencia_mediana_ms) " +
+                    "VALUES(@s, @b, @t, @p, @r, @pct, @lat)";
+                cmd.Parameters.AddWithValue("@s", _currentSessionId);
+                cmd.Parameters.AddWithValue("@b", boutId > 0 ? (object)boutId : DBNull.Value);
+                cmd.Parameters.AddWithValue("@t", UnixMs());
+                cmd.Parameters.AddWithValue("@p", participantes);
+                cmd.Parameters.AddWithValue("@r", resolvidos);
+                cmd.Parameters.AddWithValue("@pct", pct);
+                cmd.Parameters.AddWithValue("@lat", latenciaMedianaMs);
+                cmd.ExecuteNonQuery();
+            }
         }
 
         // Growth stats: total DB size on disk + row counts.

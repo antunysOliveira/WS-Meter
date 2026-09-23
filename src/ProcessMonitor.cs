@@ -28,6 +28,26 @@ namespace WSEngine
         public bool IsRunning { get { return _lastSeen; } }
         public int Pid { get { return _lastPid; } }
 
+        // StartTime of the currently-tracked process, in UnixMs. 0 if unknown or not running.
+        // Queried lazily from Process.StartTime — Windows exposes this even for
+        // processes started before the monitor began polling.
+        public long GameStartedAtMs
+        {
+            get
+            {
+                if (_lastPid <= 0) return 0;
+                try
+                {
+                    using (var p = Process.GetProcessById(_lastPid))
+                    {
+                        var utc = p.StartTime.ToUniversalTime();
+                        return (long)(utc - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
+                    }
+                }
+                catch { return 0; }
+            }
+        }
+
         public ProcessMonitor(string processName = "Warspear", int pollMs = 2000)
         {
             _processName = processName;

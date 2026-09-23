@@ -487,6 +487,11 @@ namespace WSEngine
             nicknamesPath = Path.Combine(root, "ws-engine.nicknames.json");
             autoNamesPath = Path.Combine(root, "ws-engine.known-players.json");
             mePath = Path.Combine(root, "ws-engine.me.txt");
+            // First-run: seed live caches from committed data/seed/*.json.
+            // Only copies when the live file is missing — never overwrites
+            // the user's accumulated data.
+            SeedCacheIfMissing(root);
+
             LoadNicknames();
             LoadAutoNames();
             LoadMyId();
@@ -593,24 +598,47 @@ namespace WSEngine
             _pm.Start();
             if (_pm.IsRunning)
             {
-                AppendLog("Warspear already running — capture starting mid-session; pets/classes from before boot may be missing until next zone.");
-                if (_webHost != null && _webHost.IsReady)
-                    _webHost.PushStatus("Captura iniciada com jogo em andamento (pets/classes podem estar incompletos até a próxima área)");
-                EnsureMemscanRunning();   // ProcessMonitor.OnGameStarted não dispara se já rodando
+                // tag=10 (player class broadcast) só dispara na transição de visibilidade.
+                // Captura iniciada com jogo em andamento perde essa mensagem para todos
+                // que já estão visíveis — classes ficam '?' até troca de zona.
+                long gameStartMs = _pm.GameStartedAtMs;
+                long captureStartMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                string warn = "Warspear já rodando no boot — auto-start captura em modo mid-session. " +
+                              "Classes de jogadores já visíveis podem faltar até troca de zona.";
+                AppendLog(warn);
+                AppendLog(string.Format("[capture-timing] game_started_ms={0} capture_started_ms={1} lag_ms={2}",
+                    gameStartMs, captureStartMs, gameStartMs > 0 ? (captureStartMs - gameStartMs) : -1));
+                EnsureMemscanRunning();
+                if (!_userStoppedCapture)
+                {
+                    StartCapture();
+                    if (_webHost != null && _webHost.IsReady)
+                    {
+                        _webHost.PushCapture(IsCapturing() ? "running" : "stopped");
+                        _webHost.PushStatus("[AVISO] captura iniciada com jogo em andamento — classes de quem já estava visível podem faltar");
+                    }
+                }
             }
         }
 
         void OnGameStarted(int pid)
         {
             if (InvokeRequired) { BeginInvoke((Action)(() => OnGameStarted(pid))); return; }
+            long gameStartMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             if (_userStoppedCapture)
             {
-                AppendLog("Warspear iniciou (PID " + pid + ") — captura NÃO religa: usuário parou manualmente.");
+                AppendLog("Warspear iniciou (PID " + pid + ") — captura fica parada (usuário desativou).");
+                _webHost.PushCapture("stopped");
                 return;
             }
-            AppendLog("Warspear iniciou (PID " + pid + ") — iniciando captura automática.");
+            AppendLog("Warspear iniciou (PID " + pid + ") — auto-start captura.");
+            AppendLog(string.Format("[capture-timing] game_started_ms={0} auto_capture_will_start_now", gameStartMs));
             _watchdogRestartCount = 0;
             StartCapture();
+            long captureStartMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            AppendLog(string.Format("[capture-timing] capture_started_ms={0} lag_ms={1}", captureStartMs, captureStartMs - gameStartMs));
+            if (_webHost != null && _webHost.IsReady)
+                _webHost.PushCapture(IsCapturing() ? "running" : "stopped");
         }
 
         // Auto-spawn memscan.exe in a 2s loop so nick/class resolution runs
@@ -1314,9 +1342,16 @@ namespace WSEngine
                 lats.Sort();
                 medianSec = lats[lats.Count / 2];
             }
+            long medianMs = (long)(medianSec * 1000.0);
             AppendLog(string.Format(
                 "[class-metric] bout #{0} participantes={1} resolvidos={2} ({3:0.0}%) latencia_mediana={4:0.00}s",
                 _currentBoutId, seen, resolved, pct, medianSec));
+            // Persist metric to SQLite so it can be queried without depending on log file.
+            if (_db != null)
+            {
+                try { _db.InsertClassMetric(_currentBoutId, seen, resolved, pct, medianMs); }
+                catch (Exception dbx) { PersistLogLine("[class-metric] DB insert failed: " + dbx.Message); }
+            }
         }
 
         // Scan the current frame window for high-priority class-resolution triggers.
@@ -1423,9 +1458,15 @@ namespace WSEngine
 
                 PlayerResolver.Resolved r = default(PlayerResolver.Resolved);
                 bool ok = false;
-                try { r = PlayerResolver.LookupForced(picked.Id); ok = true; } catch { }
+                string errMsg = null;
+                DateTime t0 = DateTime.UtcNow;
+                try { r = PlayerResolver.LookupForced(picked.Id); ok = true; }
+                catch (Exception ex) { errMsg = ex.GetType().Name + ":" + ex.Message; }
+                long elapsedMs = (long)(DateTime.UtcNow - t0).TotalMilliseconds;
 
                 bool resolved = ok && r.ClassId > 0;
+                int attemptNum = picked.Attempts;   // snapshot before mutation below
+                int priority = picked.Priority;
                 if (ok)
                 {
                     try
@@ -1464,6 +1505,15 @@ namespace WSEngine
                     catch { }
                 }
 
+                // Persistent per-attempt log line. Written directly (bypasses UI thread)
+                // so ResolveWorkerLoop activity is measurable after the fact.
+                PersistLogLine(string.Format(
+                    "[resolve] id=0x{0:X8} prio={1} attempt={2}/{3} elapsed_ms={4} result={5}{6}",
+                    picked.Id, priority, attemptNum + 1, RetryDelaysMs.Length, elapsedMs,
+                    resolved ? ("ok name=" + (r.Name ?? "") + " class=" + r.ClassId)
+                             : (ok ? "miss" : "err:" + (errMsg ?? "?")),
+                    resolved ? "" : ""));
+
                 lock (_resolveLock)
                 {
                     if (resolved) { _resolveJobs.Remove(picked.Id); }
@@ -1471,7 +1521,10 @@ namespace WSEngine
                     {
                         picked.Attempts++;
                         if (picked.Attempts >= RetryDelaysMs.Length)
+                        {
                             _resolveJobs.Remove(picked.Id);
+                            PersistLogLine(string.Format("[resolve] id=0x{0:X8} DROPPED after {1} attempts", picked.Id, picked.Attempts));
+                        }
                         else
                             picked.NextTry = DateTime.UtcNow.AddMilliseconds(RetryDelaysMs[picked.Attempts]);
                     }
@@ -1591,6 +1644,35 @@ namespace WSEngine
             // names since memory holds the game's own authoritative name table.
             string memPath = Path.Combine(root, "ws-engine.mem-players.json");
             LoadJsonNamesInto(memPath, autoNameCache);
+        }
+
+        // Seed live cache from data/seed/ on first run. Copies only if the
+        // live file is missing OR empty (2-byte "{}"). Never overwrites a
+        // populated live cache. Public game data only — no nicknames/me.txt.
+        static void SeedCacheIfMissing(string root)
+        {
+            string seedDir = Path.Combine(root, "data", "seed");
+            if (!Directory.Exists(seedDir)) return;
+            string[] files = new[]
+            {
+                "ws-engine.mem-players.json",
+                "ws-engine.mem-player-classes.json",
+                "ws-engine.mem-player-guilds.json",
+                "ws-engine.mem-guilds.json",
+            };
+            foreach (var f in files)
+            {
+                try
+                {
+                    string live = Path.Combine(root, f);
+                    string seed = Path.Combine(seedDir, f);
+                    if (!File.Exists(seed)) continue;
+                    if (File.Exists(live) && new FileInfo(live).Length > 3) continue;
+                    File.Copy(seed, live, overwrite: true);
+                    System.Console.WriteLine("[seed] copied " + f);
+                }
+                catch { }
+            }
         }
 
         static void LoadJsonNamesInto(string path, Dictionary<uint, string> target)
@@ -2256,32 +2338,33 @@ namespace WSEngine
             switch (cmd)
             {
                 case "ready":
-                    _webHost.PushStatus("Pronto — clique em ▶ para iniciar a captura");
-                    _webHost.PushCapture("idle");
+                    // JS acabou de terminar de bootar. Sincroniza estado real
+                    // do botão captura AGORA — antes disso JS pode ter
+                    // renderizado default do HTML.
+                    AppendLog("[cmd] ready — sync capture state: " + (IsCapturing() ? "running" : "stopped"));
+                    _webHost.PushStatus(IsCapturing() ? "Capturando" : "Pronto — clique em ▶ para iniciar");
+                    _webHost.PushCapture(IsCapturing() ? "running" : "stopped");
                     break;
                 case "toggle":
-                    // Continuous-capture arch: toggle is "new bout / end bout" — does NOT touch dumpcap.
-                    // Capture lifetime tracks Warspear.exe automatically via ProcessMonitor.
+                    // Bout ≠ capture. Only end/start a bout — do NOT touch the
+                    // capture-button state (that would flip the UI from
+                    // "capturando" to "parado" while dumpcap is still running).
                     if (_currentBoutId > 0)
                     {
-                        // End current bout, keep capture running.
                         if (_db != null) { try { _db.EndBout(_currentBoutId); } catch { } }
                         _currentBoutId = 0;
-                        _webHost.PushCapture("idle");
                         AppendLog("Bout ended.");
                     }
                     else
                     {
-                        // Start new bout — reset only fight-state, keep persistent state.
                         StartNewBout(null);
-                        _webHost.PushCapture("running");
                     }
                     break;
                 case "reset":
-                    // Single unified action: end current bout, start fresh one,
-                    // reset numbers. Users had two similar-looking play buttons
-                    // that confused start-capture with new-bout. Now there's a
-                    // single reset button and a single stop/start-capture button.
+                    // Reset SÓ zera contadores + timer + leaderboard. NÃO
+                    // toca dumpcap. Captura continua rodando (ou parada) do
+                    // jeito que estava.
+                    AppendLog("[cmd] reset");
                     if (_currentBoutId > 0 && _db != null)
                     {
                         try { _db.EndBout(_currentBoutId); } catch { }
@@ -2292,33 +2375,47 @@ namespace WSEngine
                     StartNewBout(null);
                     _webHost.PushLeaderboard("[]");
                     _webHost.PushTimer(0);
-                    _webHost.PushCapture("running");
+                    _webHost.PushStatus("Contadores zerados.");
                     break;
                 case "save":
                     SaveSnapshot();
                     break;
                 case "stop-capture":
-                    // User explicitly stops the capture. Disable auto-restart until they
-                    // click "Iniciar captura" again.
+                    // Só pausa a captura (dumpcap). Bout continua vivo — próximo
+                    // start-capture retoma o mesmo bout com contadores intactos.
+                    AppendLog("[cmd] stop-capture");
                     _userStoppedCapture = true;
-                    if (_currentBoutId > 0 && _db != null)
-                    {
-                        try { _db.EndBout(_currentBoutId); } catch { }
-                        _currentBoutId = 0;
-                    }
-                    StopCapture();
+                    if (IsCapturing()) StopCapture();
                     _webHost.PushCapture("stopped");
-                    _webHost.PushStatus("Captura parada pelo usuário — auto-início desativado.");
-                    AppendLog("Usuário parou a captura manualmente.");
+                    _webHost.PushStatus("Captura parada.");
                     break;
                 case "start-capture":
-                    // Re-enable auto-start and kick off a capture right now.
+                    AppendLog("[cmd] start-capture");
                     _userStoppedCapture = false;
                     _watchdogRestartCount = 0;
-                    if (proc == null || proc.HasExited) StartCapture();
-                    _webHost.PushCapture("idle");
-                    _webHost.PushStatus("Captura iniciada.");
-                    AppendLog("Usuário iniciou a captura manualmente.");
+                    if (IsCapturing())
+                    {
+                        AppendLog("start-capture: já capturando (idempotente).");
+                        _webHost.PushCapture("running");
+                        break;
+                    }
+                    if (cmbIf.SelectedIndex < 0) AutoDetectInterface();
+                    StartCapture();
+                    if (IsCapturing())
+                    {
+                        _webHost.PushCapture("running");
+                        _webHost.PushStatus("Captura iniciada.");
+                    }
+                    else
+                    {
+                        _webHost.PushCapture("stopped");
+                        string reason = File.Exists(Path.Combine(txtWs.Text ?? "", "dumpcap.exe"))
+                            ? (cmbIf.SelectedIndex < 0 ? "nenhuma interface detectada — instale Npcap"
+                                                       : "dumpcap não iniciou (verifique log)")
+                            : "Wireshark não encontrado — instale";
+                        _webHost.PushStatus("Falha ao iniciar: " + reason);
+                        AppendLog("start-capture FAIL: " + reason);
+                    }
                     break;
             }
         }
@@ -2633,6 +2730,8 @@ namespace WSEngine
             }
         }
 
+        bool IsCapturing() { return proc != null && !proc.HasExited; }
+
         void StartCapture()
         {
             if (proc != null && !proc.HasExited) { AppendLog("Already running."); return; }
@@ -2690,6 +2789,10 @@ namespace WSEngine
                 if (lblLiveHint != null) lblLiveHint.Text = "Gravando — dano ao vivo de " + Path.GetFileName(pcapPath);
                 if (liveTimer != null) liveTimer.Start();
                 if (_db != null) { try { _db.StartSession(pcapPath); } catch (Exception dbx) { AppendLog("[DB] StartSession: " + dbx.Message); } }
+                // Só inicia um bout se ainda não existe. Assim start/stop/start
+                // preserva os contadores acumulados (usuário só zera via ⟳ reset).
+                if (_currentBoutId <= 0) StartNewBout(null);
+                if (_webHost != null && _webHost.IsReady) _webHost.PushCapture("running");
             }
             catch (Exception ex)
             {
@@ -2873,6 +2976,19 @@ namespace WSEngine
             string line = "[" + DateTime.Now.ToString("HH:mm:ss") + "] " + msg + Environment.NewLine;
             if (txtLog.InvokeRequired) txtLog.BeginInvoke((Action)(() => { txtLog.AppendText(line); }));
             else txtLog.AppendText(line);
+            PersistLog(line);
+        }
+
+        // Persist a raw line (already-formatted) to wsengine.log in the app root.
+        // Safe from any thread. Used for AppendLog mirror and for background workers
+        // (ResolveWorkerLoop, class-metric) that need to survive the UI TextBox.
+        void PersistLog(string line)
+        {
+            try { File.AppendAllText(Path.Combine(root, "wsengine.log"), line); } catch { }
+        }
+        void PersistLogLine(string msg)
+        {
+            PersistLog("[" + DateTime.Now.ToString("HH:mm:ss") + "] " + msg + Environment.NewLine);
         }
     }
 }
