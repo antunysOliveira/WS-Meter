@@ -41,7 +41,7 @@ Passo-a-passo em [`SETUP.md`](SETUP.md). Rápido:
 
 1. Instalar [Wireshark](https://www.wireshark.org/download.html) (marca a opção **Npcap** durante a instalação).
 2. Reiniciar o PC (o Npcap precisa disso).
-3. Baixar/extrair essa pasta pra qualquer lugar no PC.
+3. Baixar o zip da última versão em [**Releases**](https://github.com/antunysOliveira/WS-Meter/releases/latest) e extrair pra qualquer pasta no PC.
 4. Abrir o Warspear e logar normal.
 5. Duplo-clique em **`WS-engine.exe`** — aceita o UAC (precisa admin pra ler os pacotes).
 6. Pronto — o meter começa a preencher quando você entra em combate.
