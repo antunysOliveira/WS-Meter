@@ -1,0 +1,36 @@
+﻿[Capture] raid_overgod_20260919_161016.pcapng
+  First packet: 19/09/0057 19:10:16
+  Last packet:  19/09/0057 19:32:46
+  S2C stream: 856148 bytes
+  FOUND Centablg (0x00692DA2) @ offset 189610
+  Jokermwc: NOT FOUND
+  Brokeblade: NOT FOUND
+  Mudin: NOT FOUND
+  Wexu: NOT FOUND
+  Centablg: 1 hits
+  Kaliffado: NOT FOUND
+
+[Capture] raid_guild_20260919_094131.pcapng
+  First packet: 19/09/0057 12:41:31
+  Last packet:  19/09/0057 13:18:10
+  S2C stream: 8523118 bytes
+  FOUND Centablg (0x00692DA2) @ offset 3007
+  Jokermwc: 1 hits
+  Brokeblade: 1 hits
+  Mudin: 1 hits
+  Wexu: 1 hits
+  Centablg: 2 hits
+  Kaliffado: 1 hits
+
+[Capture] raid_boss2_20260919_103642.pcapng
+  First packet: 19/09/0057 13:36:42
+  Last packet:  19/09/0057 13:39:01
+  S2C stream: 443579 bytes
+  FOUND Centablg (0x00692DA2) @ offset 270
+  Jokermwc: NOT FOUND
+  Brokeblade: NOT FOUND
+  Mudin: NOT FOUND
+  Wexu: NOT FOUND
+  Centablg: 1 hits
+  Kaliffado: NOT FOUND
+

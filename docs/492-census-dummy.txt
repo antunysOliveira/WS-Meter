@@ -1,0 +1,96 @@
+
+################################################################
+# captures\ws_20260920_104845.pcapng
+################################################################
+total tag=492 s2c msgs: 49
+
+[TASK 5] header size / startOff detection
+  startOff=0: 0/49 bodies clean (0,0%)  bytes walked 0,0%
+  startOff=1: 1/49 bodies clean (2,0%)  bytes walked 5,5%
+  startOff=2: 1/49 bodies clean (2,0%)  bytes walked 65,0%
+  startOff=3: 1/49 bodies clean (2,0%)  bytes walked 65,5%
+  startOff=4: 1/49 bodies clean (2,0%)  bytes walked 66,6%
+  startOff=5: 1/49 bodies clean (2,0%)  bytes walked 37,1%
+  startOff=6: 1/49 bodies clean (2,0%)  bytes walked 41,3%
+  startOff=7: 1/49 bodies clean (2,0%)  bytes walked 22,1%
+  startOff=8: 0/49 bodies clean (0,0%)  bytes walked 34,6%
+
+  first-byte-of-body histogram (top 10):
+    0xd7 : 6
+    0xbc : 5
+    0xa4 : 4
+    0x6b : 4
+    0x82 : 2
+    0xfb : 2
+    0xe9 : 2
+    0x67 : 1
+    0xfc : 1
+    0xbe : 1
+
+  best startOff per first byte (bodies with same first byte):
+    firstByte=0xd7 (6 bodies): bestStartOff=0 clean=0
+    firstByte=0xbc (5 bodies): bestStartOff=0 clean=0
+    firstByte=0xa4 (4 bodies): bestStartOff=0 clean=0
+    firstByte=0x6b (4 bodies): bestStartOff=0 clean=0
+    firstByte=0x82 (2 bodies): bestStartOff=0 clean=0
+    firstByte=0xfb (2 bodies): bestStartOff=0 clean=0
+
+[TASK 1] sub-tag census (startOff=1)
+  tag  |    count |  lenMin  lenMax   modeLen(cnt) | sample #0
+      0 |      13 |      0      11   0 (8) | 00 00
+  10944 |       5 |      0       0   0 (5) | c0 55 00
+     92 |       4 |     12      12   12 (4) | 5c 0c f2 ff ff ff a2 2d 69 00 01 00 40 5b
+     11 |       4 |     49      49   49 (4) | 0b 31 00 0c 00 d5 0b 91 f6 05 01 57 00 ab 03 0d c1 1c 00 12 00 51 17 87
+     14 |       4 |      0       0   0 (4) | 0e 00
+   1014 |       2 |     85      85   85 (2) | f6 07 55 00 5b 0b 00 00 a2 2d 69 00 0b 91 f6 05 01 57 00 ab 03 0d 03 0a
+    368 |       1 |     73      73   73 (1) | f0 02 49 03 02 36 00 55 00 5c 0c ee ff ff ff a2 2d 69 00 01 00 41 66 07
+     24 |       1 |     19      19   19 (1) | 18 13 01 36 00 03 01 0f 00 10 7b 10 00 01 02 00 0a 28 00 50 00
+    125 |       1 |      0       0   0 (1) | 7d 00
+      4 |       1 |      0       0   0 (1) | 04 00
+   1527 |       1 |     31      31   31 (1) | f7 0b 1f 03 02 00 5a 55 00 5b 0b 00 00 a2 2d 69 00 0b 91 f6 05 01 57 00
+     20 |       1 |      3       3   3 (1) | 14 03 04 06 1e
+   6513 |       1 |     65      65   65 (1) | f1 32 41 51 34 4e 10 9a ac 49 00 0a 41 63 6f 73 74 75 6d 61 64 6f 22 1a
+   1652 |       1 |     31      31   31 (1) | f4 0c 1f 03 02 00 5a 55 00 5b 0b 00 00 a2 2d 69 00 0b 91 f6 05 01 57 00
+     98 |       1 |     12      12   12 (1) | 62 0c 2f 00 00 00 a2 2d 69 00 01 00 d0 56
+
+[TASK 2] stall analysis (startOff=1)
+  total stalls: 48 / 49
+  top stalling tags:
+    tag=     1 : 25 stalls
+    tag=     0 : 4 stalls
+    tag=    16 : 4 stalls
+    tag=     2 : 3 stalls
+    tag=     6 : 3 stalls
+    tag=     7 : 2 stalls
+    tag=  1014 : 2 stalls
+    tag=     4 : 2 stalls
+    tag=     9 : 1 stalls
+    tag=  1012 : 1 stalls
+    tag=    17 : 1 stalls
+
+  stall context samples (32B from stall position):
+    tag=1 len=752 off=1 : 01 f0 05 d3 04 c6 05 36 00 00 00 05 0a 01 00 00 00 02 00 00 b0 41 00 01 00 90 02 00 00 00 01 a6
+    tag=2 len=10944 off=1 : 02 c0 55 00 5c 0c e6 ff ff ff a2 2d 69 00 01 00 41 66 07 b8 00 0c 00 61 ae 03 14 00 04 c4 0c 00
+    tag=9 len=76225 off=1 : 09 c1 d3 04 b9 04 58 00 00 00 04 0a 01 00 01 00 21 40 40 07 00 11 02 06 00 31 60 6a 46 08 00 11
+    tag=0 len=324 off=91 : 00 c4 02 00 01 00 70 1d 05 20 0b 91 f6 05 72 00 00 00
+    tag=2 len=10944 off=1 : 02 c0 55 00 5c 0c e2 ff ff ff a2 2d 69 00 01 00 40 67 0b 44 02 0c 00 c0 0b 91 f6 05 00 ae 03 14
+    tag=7 len=76225 off=1 : 07 c1 d3 04 b9 04 58 00 00 00 04 0a 01 00 01 00 21 40 40 07 00 11 02 06 00 31 60 6a 46 08 00 11
+    tag=1 len=2673 off=1 : 01 f1 14 55 00 ae 03 14 03 04 06 00 0b 91 f6 05 03 00 00 00 b8 0b 00 00 ec 00 32 00 56 00 8c 01
+    tag=1 len=752 off=1 : 01 f0 05 d3 04 c6 05 32 00 00 00 05 0a 01 00 00 00 01 29 5c 8f 3d 00 01 00 10 02 05 00 40 00 00
+
+[TASK 3] body-completion (startOff=1)
+  bodies walked start-to-end: 1/49  (2,0%)
+  bytes walked / body bytes: 5,5%
+
+[TASK 4] length-rule test for tag=1 (worst offender)
+  10 samples for tag=1
+    01 f0 05 d3 04 c6 05 36 00 00 00 05 0a 01 00 00 00 02 00 00 b0 41 00 01 00 90 02 00 00 00 01 a6 9b c4 3b 0d 00 21 00 03 06 00 31 00 fa 43 08 00 10 04 1c 00 41 00 00 80 3f 0e 00 10 05 0e 00 41
+    01 f1 14 55 00 ae 03 14 03 04 06 00 0b 91 f6 05 03 00 00 00 b8 0b 00 00 ec 00 32 00 56 00 8c 01 0b 0d 0d a2 2d 69 1b 00 90 01 55 00 5c 0c ed ff ff ff 11 00 80 00 00 00 00 8a 01 08 32 08 00 71
+    01 f0 05 d3 04 c6 05 32 00 00 00 05 0a 01 00 00 00 01 29 5c 8f 3d 00 01 00 10 02 05 00 40 00 00 a0 40 06 00 21 00 03 06 00 22 00 00 0e 00 10 04 0b 00 40 cd cc 4c 3e 08 00 21 00 05 06 00 04 02
+    01 f0 03 04 04 36 aa 1d 09 55 00 5c 0c f2 ff ff ff a2 2d 69 00 01 00 40 5b 0b 31 00 0c 00 d5 0b 91 f6 05 01 57 00 ab 03 0d f5 10 00 12 00 51 13 87 01 06 31 1c 00 b5 56 00 49 03 03 31 00 14 0d
+    01 c1 d3 04 c6 05 31 00 00 00 05 0a 01 00 01 00 81 f0 41 01 00 00 a0 41 02 0d 00 30 00 00 40 05 00 f1 01 00 03 00 00 00 01 cd cc ac 3f 01 9a 99 99 3f 04 14 00 04 02 00 14 05 09 00 01 02 00 11
+    01 c0 55 00 5c 0c e8 ff ff ff a2 2d 69 00 01 00 40 67 0b 80 00 0c 00 b5 0b 91 f6 05 00 ab 03 0d ba 13 00 10 00 51 13 87 01 06 80 1a 00 61 ae 03 14 03 04 06 0b 00 f4 08 05 00 00 00 a0 0f 00 00
+    01 f6 0c 1f 03 02 00 5a 55 00 5b 0b 00 00 a2 2d 69 00 0b 91 f6 05 01 57 00 ab 03 0d 8b 0c 12 00 b0 15 56 00 55 00 5c 0c f4 ff ff ff 25 00 71 00 00 00 00 66 07 30 31 00 62 00 57 00 86 01 06 0c
+    01 c1 d3 04 c6 05 30 00 00 00 05 0a 01 00 01 00 21 20 41 07 00 11 02 06 00 31 00 80 3f 08 00 11 03 06 00 30 00 00 40 05 00 21 00 04 06 00 92 00 48 42 01 00 00 f0 41 05 0e 00 03 1c 00 f3 00 06
+    01 f0 02 49 03 02 5d 00 55 00 5c 0c ea ff ff ff a2 2d 69 00 01 00 50 86 01 06 5d 00 0d 00 61 ab 03 0d 62 0a 00 0b 00 90 0b 91 f6 05 13 56 00 40 12 18 00 60 02 2a 00 1a 00 02 2b 00 00 02 00 d0
+    01 c1 d3 04 c6 05 31 00 00 00 05 0a 01 00 01 00 81 f0 41 01 00 00 a0 41 02 0d 00 30 00 00 40 05 00 f1 01 00 03 00 00 00 01 cd cc ac 3f 01 9a 99 99 3f 04 14 00 04 02 00 14 05 09 00 01 02 00 11

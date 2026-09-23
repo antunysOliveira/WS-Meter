@@ -1,0 +1,38 @@
+
+################################################################
+# captures\ws_20260920_212612.pcapng
+################################################################
+total tag=492 s2c msgs: 1314
+
+[TASK 5] header size / startOff detection
+  startOff=0: 1/1314 bodies clean (0,1%)  bytes walked 5,7%
+  startOff=1: 94/1314 bodies clean (7,2%)  bytes walked 26,4%
+  startOff=2: 100/1314 bodies clean (7,6%)  bytes walked -1301437,3%
+  startOff=3: 127/1314 bodies clean (9,7%)  bytes walked -1311877,3%
+  startOff=4: 83/1314 bodies clean (6,3%)  bytes walked -1322508,2%
+  startOff=5: 90/1314 bodies clean (6,8%)  bytes walked -3999987,6%
+  startOff=6: 69/1314 bodies clean (5,3%)  bytes walked -2688588,4%
+  startOff=7: 78/1314 bodies clean (5,9%)  bytes walked -1355426,2%
+  startOff=8: 75/1314 bodies clean (5,7%)  bytes walked -1366760,3%
+
+  first-byte-of-body histogram (top 10):
+    0x38 : 64
+    0x3f : 47
+    0x20 : 31
+    0x41 : 30
+    0x29 : 26
+    0x3b : 25
+    0x26 : 25
+    0x3c : 23
+    0x4a : 20
+    0x1e : 20
+
+  best startOff per first byte (bodies with same first byte):
+    firstByte=0x38 (64 bodies): bestStartOff=3 clean=2
+    firstByte=0x3f (47 bodies): bestStartOff=3 clean=8
+    firstByte=0x20 (31 bodies): bestStartOff=0 clean=0
+    firstByte=0x41 (30 bodies): bestStartOff=6 clean=3
+    firstByte=0x29 (26 bodies): bestStartOff=1 clean=6
+    firstByte=0x3b (25 bodies): bestStartOff=4 clean=7
+
+[TASK 1] sub-tag census (startOff=3)

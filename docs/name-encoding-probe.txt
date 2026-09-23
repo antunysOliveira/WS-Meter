@@ -1,0 +1,1193 @@
+﻿============================================
+Dump: raid_overgod_20260919_161016
+============================================
+
+[I] segments loaded: 21189
+[I] TLV messages parsed: 31387
+[I] S2C: 856148 bytes, 856148 walked
+[I] known players (valid range): 437
+
+===== RESULTS =====
+Total hits: 428
+
+  Adrianx         ASCII      tag= 492:  1 hits
+  Adrianx         UTF-8      tag= 492:  1 hits
+  Alferdd         ASCII      tag=  62:  1 hits
+  Alferdd         UTF-8      tag=  62:  1 hits
+  Angelicais      ASCII      tag=  65:  13 hits
+  Angelicais      ASCII      tag= 492:  3 hits
+  Angelicais      UTF-16LE   tag=  65:  1 hits
+  Angelicais      UTF-16LE   tag= 492:  3 hits
+  Angelicais      UTF-8      tag=  65:  13 hits
+  Angelicais      UTF-8      tag= 492:  3 hits
+  ANOMALIA        UTF-16LE   tag= 206:  2 hits
+  ANOMALIA        UTF-16LE   tag= 492:  2 hits
+  Anonymous       UTF-16LE   tag= 206:  1 hits
+  ANTIELFS        UTF-16LE   tag= 206:  1 hits
+  ANTIELFS        UTF-16LE   tag= 492:  2 hits
+  Aurelinho       ASCII      tag= 492:  1 hits
+  Aurelinho       UTF-8      tag= 492:  1 hits
+  Baldwiniv       ASCII      tag= 492:  1 hits
+  Baldwiniv       UTF-8      tag= 492:  1 hits
+  Banmidou        ASCII      tag= 492:  1 hits
+  Banmidou        UTF-8      tag= 492:  1 hits
+  Beru            ASCII      tag= 492:  1 hits
+  Beru            UTF-8      tag= 492:  1 hits
+  Caciquewz       ASCII      tag= 492:  1 hits
+  Caciquewz       UTF-8      tag= 492:  1 hits
+  Caloteira       ASCII      tag= 346:  1 hits
+  Caloteira       ASCII      tag= 492:  1 hits
+  Caloteira       UTF-16LE   tag=  65:  1 hits
+  Caloteira       UTF-16LE   tag= 492:  1 hits
+  Caloteira       UTF-8      tag= 346:  1 hits
+  Caloteira       UTF-8      tag= 492:  1 hits
+  Carsant         ASCII      tag= 492:  2 hits
+  Carsant         UTF-8      tag= 492:  2 hits
+  Cavalarian      ASCII      tag= 492:  1 hits
+  Cavalarian      UTF-8      tag= 492:  1 hits
+  Cavvveira       ASCII      tag= 492:  1 hits
+  Cavvveira       UTF-8      tag= 492:  1 hits
+  Centablg        ASCII      tag= 492:  1 hits
+  Centablg        UTF-16LE   tag= 492:  1 hits
+  Centablg        UTF-8      tag= 492:  1 hits
+  Crasique        ASCII      tag=  65:  6 hits
+  Crasique        UTF-8      tag=  65:  6 hits
+  Darkstalke      ASCII      tag= 492:  1 hits
+  Darkstalke      UTF-8      tag= 492:  1 hits
+  Discipulo       ASCII      tag= 492:  1 hits
+  Discipulo       UTF-8      tag= 492:  1 hits
+  Dkpatex         ASCII      tag=  65:  1 hits
+  Dkpatex         UTF-8      tag=  65:  1 hits
+  Dontcry         ASCII      tag= 492:  1 hits
+  Dontcry         UTF-8      tag= 492:  1 hits
+  Escobarsix      ASCII      tag=  65:  4 hits
+  Escobarsix      ASCII      tag= 492:  3 hits
+  Escobarsix      UTF-8      tag=  65:  4 hits
+  Escobarsix      UTF-8      tag= 492:  3 hits
+  Fuckxy          ASCII      tag= 492:  1 hits
+  Fuckxy          UTF-8      tag= 492:  1 hits
+  Fvck            ASCII      tag=  65:  1 hits
+  Fvck            ASCII      tag= 492:  2 hits
+  Fvck            UTF-8      tag=  65:  1 hits
+  Fvck            UTF-8      tag= 492:  2 hits
+  Gloss           ASCII      tag=  65:  1 hits
+  Gloss           ASCII      tag= 492:  4 hits
+  Gloss           UTF-8      tag=  65:  1 hits
+  Gloss           UTF-8      tag= 492:  4 hits
+  Godfast         ASCII      tag=  65:  3 hits
+  Godfast         UTF-8      tag=  65:  3 hits
+  Havel           ASCII      tag= 492:  1 hits
+  Havel           UTF-8      tag= 492:  1 hits
+  Hiagodk         ASCII      tag=  65:  6 hits
+  Hiagodk         ASCII      tag= 492:  1 hits
+  Hiagodk         UTF-8      tag=  65:  6 hits
+  Hiagodk         UTF-8      tag= 492:  1 hits
+  Hiroxd          ASCII      tag=  65:  6 hits
+  Hiroxd          UTF-8      tag=  65:  6 hits
+  Hoteador        ASCII      tag=  65:  2 hits
+  Hoteador        ASCII      tag= 492:  1 hits
+  Hoteador        UTF-8      tag=  65:  2 hits
+  Hoteador        UTF-8      tag= 492:  1 hits
+  Jefzk           ASCII      tag= 492:  1 hits
+  Jefzk           UTF-8      tag= 492:  1 hits
+  Joones          UTF-16LE   tag= 492:  1 hits
+  Jserafim        ASCII      tag= 492:  5 hits
+  Jserafim        UTF-8      tag= 492:  5 hits
+  Kaidou          ASCII      tag= 492:  1 hits
+  Kaidou          UTF-8      tag= 492:  1 hits
+  Kherveros       ASCII      tag= 492:  1 hits
+  Kherveros       UTF-8      tag= 492:  1 hits
+  Kihorror        ASCII      tag= 492:  1 hits
+  Kihorror        UTF-8      tag= 492:  1 hits
+  Lagspear        ASCII      tag=  65:  3 hits
+  Lagspear        ASCII      tag= 492:  1 hits
+  Lagspear        UTF-8      tag=  65:  3 hits
+  Lagspear        UTF-8      tag= 492:  1 hits
+  Lanbo           UTF-16LE   tag= 492:  1 hits
+  Letalidade      ASCII      tag= 492:  1 hits
+  Letalidade      UTF-8      tag= 492:  1 hits
+  Marchielo       ASCII      tag= 492:  1 hits
+  Marchielo       UTF-8      tag= 492:  1 hits
+  Meupau          ASCII      tag= 492:  1 hits
+  Meupau          UTF-8      tag= 492:  1 hits
+  Miolos          ASCII      tag= 492:  1 hits
+  Miolos          UTF-8      tag= 492:  1 hits
+  Mlkdopo         ASCII      tag=   9:  1 hits
+  Mlkdopo         ASCII      tag=  65:  1 hits
+  Mlkdopo         ASCII      tag= 492:  1 hits
+  Mlkdopo         UTF-8      tag=   9:  1 hits
+  Mlkdopo         UTF-8      tag=  65:  1 hits
+  Mlkdopo         UTF-8      tag= 492:  1 hits
+  Monkey          ASCII      tag= 492:  1 hits
+  Monkey          UTF-8      tag= 492:  1 hits
+  Nerftotem       ASCII      tag=  65:  1 hits
+  Nerftotem       ASCII      tag= 492:  1 hits
+  Nerftotem       UTF-16LE   tag= 492:  2 hits
+  Nerftotem       UTF-8      tag=  65:  1 hits
+  Nerftotem       UTF-8      tag= 492:  1 hits
+  Ninawick        ASCII      tag=  65:  2 hits
+  Ninawick        ASCII      tag= 492:  5 hits
+  Ninawick        UTF-8      tag=  65:  2 hits
+  Ninawick        UTF-8      tag= 492:  5 hits
+  Niukkuin        ASCII      tag=  65:  2 hits
+  Niukkuin        ASCII      tag= 492:  2 hits
+  Niukkuin        UTF-8      tag=  65:  2 hits
+  Niukkuin        UTF-8      tag= 492:  2 hits
+  Ohsorry         ASCII      tag= 492:  3 hits
+  Ohsorry         UTF-8      tag= 492:  3 hits
+  Onehitwin       ASCII      tag= 492:  1 hits
+  Onehitwin       UTF-8      tag= 492:  1 hits
+  Overgod         ASCII      tag=  65:  16 hits
+  Overgod         ASCII      tag= 492:  11 hits
+  Overgod         UTF-16LE   tag=  65:  1 hits
+  Overgod         UTF-16LE   tag= 492:  1 hits
+  Overgod         UTF-8      tag=  65:  16 hits
+  Overgod         UTF-8      tag= 492:  11 hits
+  Peoplebeck      ASCII      tag=  65:  15 hits
+  Peoplebeck      ASCII      tag= 492:  9 hits
+  Peoplebeck      UTF-8      tag=  65:  15 hits
+  Peoplebeck      UTF-8      tag= 492:  9 hits
+  Powerpoint      ASCII      tag= 492:  1 hits
+  Powerpoint      UTF-8      tag= 492:  1 hits
+  Ricchard        ASCII      tag= 492:  1 hits
+  Ricchard        UTF-8      tag= 492:  1 hits
+  Shiirou         ASCII      tag= 492:  1 hits
+  Shiirou         UTF-8      tag= 492:  1 hits
+  Sicotin         UTF-16LE   tag= 492:  1 hits
+  Tagitam         ASCII      tag= 492:  14 hits
+  Tagitam         UTF-16BE   tag=  65:  3 hits
+  Tagitam         UTF-16LE   tag=  65:  3 hits
+  Tagitam         UTF-8      tag= 492:  14 hits
+  Templo          UTF-16LE   tag=  65:  3 hits
+  TheRocks        UTF-16LE   tag= 206:  1 hits
+  Tiago           ASCII      tag= 492:  1 hits
+  Tiago           UTF-8      tag= 492:  1 hits
+  Tounabad        ASCII      tag= 492:  2 hits
+  Tounabad        UTF-16LE   tag= 492:  1 hits
+  Tounabad        UTF-8      tag= 492:  2 hits
+  Txntj           ASCII      tag= 492:  1 hits
+  Txntj           UTF-8      tag= 492:  1 hits
+  Typohacker      ASCII      tag=  65:  3 hits
+  Typohacker      ASCII      tag= 492:  2 hits
+  Typohacker      UTF-8      tag=  65:  3 hits
+  Typohacker      UTF-8      tag= 492:  2 hits
+  Venery          ASCII      tag= 492:  1 hits
+  Venery          UTF-8      tag= 492:  1 hits
+  Worb            ASCII      tag= 492:  1 hits
+  Worb            UTF-8      tag= 492:  1 hits
+  YOLO            UTF-16LE   tag= 492:  1 hits
+  Zargus          ASCII      tag=   9:  2 hits
+  Zargus          ASCII      tag=  65:  2 hits
+  Zargus          UTF-8      tag=   9:  2 hits
+  Zargus          UTF-8      tag=  65:  2 hits
+
+===== SUMMARY TABLE =====
+Nick            Encoding      Tag     Hits
+Adrianx         ASCII         492        1
+Adrianx         UTF-8         492        1
+Alferdd         ASCII          62        1
+Alferdd         UTF-8          62        1
+Angelicais      ASCII          65       13
+Angelicais      ASCII         492        3
+Angelicais      UTF-16LE       65        1
+Angelicais      UTF-16LE      492        3
+Angelicais      UTF-8          65       13
+Angelicais      UTF-8         492        3
+ANOMALIA        UTF-16LE      206        2
+ANOMALIA        UTF-16LE      492        2
+Anonymous       UTF-16LE      206        1
+ANTIELFS        UTF-16LE      206        1
+ANTIELFS        UTF-16LE      492        2
+Aurelinho       ASCII         492        1
+Aurelinho       UTF-8         492        1
+Baldwiniv       ASCII         492        1
+Baldwiniv       UTF-8         492        1
+Banmidou        ASCII         492        1
+Banmidou        UTF-8         492        1
+Beru            ASCII         492        1
+Beru            UTF-8         492        1
+Caciquewz       ASCII         492        1
+Caciquewz       UTF-8         492        1
+Caloteira       ASCII         346        1
+Caloteira       ASCII         492        1
+Caloteira       UTF-16LE       65        1
+Caloteira       UTF-16LE      492        1
+Caloteira       UTF-8         346        1
+Caloteira       UTF-8         492        1
+Carsant         ASCII         492        2
+Carsant         UTF-8         492        2
+Cavalarian      ASCII         492        1
+Cavalarian      UTF-8         492        1
+Cavvveira       ASCII         492        1
+Cavvveira       UTF-8         492        1
+Centablg        ASCII         492        1
+Centablg        UTF-16LE      492        1
+Centablg        UTF-8         492        1
+Crasique        ASCII          65        6
+Crasique        UTF-8          65        6
+Darkstalke      ASCII         492        1
+Darkstalke      UTF-8         492        1
+Discipulo       ASCII         492        1
+Discipulo       UTF-8         492        1
+Dkpatex         ASCII          65        1
+Dkpatex         UTF-8          65        1
+Dontcry         ASCII         492        1
+Dontcry         UTF-8         492        1
+Escobarsix      ASCII          65        4
+Escobarsix      ASCII         492        3
+Escobarsix      UTF-8          65        4
+Escobarsix      UTF-8         492        3
+Fuckxy          ASCII         492        1
+Fuckxy          UTF-8         492        1
+Fvck            ASCII          65        1
+Fvck            ASCII         492        2
+Fvck            UTF-8          65        1
+Fvck            UTF-8         492        2
+Gloss           ASCII          65        1
+Gloss           ASCII         492        4
+Gloss           UTF-8          65        1
+Gloss           UTF-8         492        4
+Godfast         ASCII          65        3
+Godfast         UTF-8          65        3
+Havel           ASCII         492        1
+Havel           UTF-8         492        1
+Hiagodk         ASCII          65        6
+Hiagodk         ASCII         492        1
+Hiagodk         UTF-8          65        6
+Hiagodk         UTF-8         492        1
+Hiroxd          ASCII          65        6
+Hiroxd          UTF-8          65        6
+Hoteador        ASCII          65        2
+Hoteador        ASCII         492        1
+Hoteador        UTF-8          65        2
+Hoteador        UTF-8         492        1
+Jefzk           ASCII         492        1
+Jefzk           UTF-8         492        1
+Joones          UTF-16LE      492        1
+Jserafim        ASCII         492        5
+Jserafim        UTF-8         492        5
+Kaidou          ASCII         492        1
+Kaidou          UTF-8         492        1
+Kherveros       ASCII         492        1
+Kherveros       UTF-8         492        1
+Kihorror        ASCII         492        1
+Kihorror        UTF-8         492        1
+Lagspear        ASCII          65        3
+Lagspear        ASCII         492        1
+Lagspear        UTF-8          65        3
+Lagspear        UTF-8         492        1
+Lanbo           UTF-16LE      492        1
+Letalidade      ASCII         492        1
+Letalidade      UTF-8         492        1
+Marchielo       ASCII         492        1
+Marchielo       UTF-8         492        1
+Meupau          ASCII         492        1
+Meupau          UTF-8         492        1
+Miolos          ASCII         492        1
+Miolos          UTF-8         492        1
+Mlkdopo         ASCII           9        1
+Mlkdopo         ASCII          65        1
+Mlkdopo         ASCII         492        1
+Mlkdopo         UTF-8           9        1
+Mlkdopo         UTF-8          65        1
+Mlkdopo         UTF-8         492        1
+Monkey          ASCII         492        1
+Monkey          UTF-8         492        1
+Nerftotem       ASCII          65        1
+Nerftotem       ASCII         492        1
+Nerftotem       UTF-16LE      492        2
+Nerftotem       UTF-8          65        1
+Nerftotem       UTF-8         492        1
+Ninawick        ASCII          65        2
+Ninawick        ASCII         492        5
+Ninawick        UTF-8          65        2
+Ninawick        UTF-8         492        5
+Niukkuin        ASCII          65        2
+Niukkuin        ASCII         492        2
+Niukkuin        UTF-8          65        2
+Niukkuin        UTF-8         492        2
+Ohsorry         ASCII         492        3
+Ohsorry         UTF-8         492        3
+Onehitwin       ASCII         492        1
+Onehitwin       UTF-8         492        1
+Overgod         ASCII          65       16
+Overgod         ASCII         492       11
+Overgod         UTF-16LE       65        1
+Overgod         UTF-16LE      492        1
+Overgod         UTF-8          65       16
+Overgod         UTF-8         492       11
+Peoplebeck      ASCII          65       15
+Peoplebeck      ASCII         492        9
+Peoplebeck      UTF-8          65       15
+Peoplebeck      UTF-8         492        9
+Powerpoint      ASCII         492        1
+Powerpoint      UTF-8         492        1
+Ricchard        ASCII         492        1
+Ricchard        UTF-8         492        1
+Shiirou         ASCII         492        1
+Shiirou         UTF-8         492        1
+Sicotin         UTF-16LE      492        1
+Tagitam         ASCII         492       14
+Tagitam         UTF-16BE       65        3
+Tagitam         UTF-16LE       65        3
+Tagitam         UTF-8         492       14
+Templo          UTF-16LE       65        3
+TheRocks        UTF-16LE      206        1
+Tiago           ASCII         492        1
+Tiago           UTF-8         492        1
+Tounabad        ASCII         492        2
+Tounabad        UTF-16LE      492        1
+Tounabad        UTF-8         492        2
+Txntj           ASCII         492        1
+Txntj           UTF-8         492        1
+Typohacker      ASCII          65        3
+Typohacker      ASCII         492        2
+Typohacker      UTF-8          65        3
+Typohacker      UTF-8         492        2
+Venery          ASCII         492        1
+Venery          UTF-8         492        1
+Worb            ASCII         492        1
+Worb            UTF-8         492        1
+YOLO            UTF-16LE      492        1
+Zargus          ASCII           9        2
+Zargus          ASCII          65        2
+Zargus          UTF-8           9        2
+Zargus          UTF-8          65        2
+
+
+============================================
+Dump: raid_guild_20260919_094131
+============================================
+
+[I] segments loaded: 35659
+[I] TLV messages parsed: 52706
+[I] S2C: 8523118 bytes, 8523118 walked
+[I] known players (valid range): 437
+
+===== RESULTS =====
+Total hits: 1464
+
+  Adestraelf      ASCII      tag=  65:  3 hits
+  Adestraelf      ASCII      tag= 492:  11 hits
+  Adestraelf      UTF-8      tag=  65:  3 hits
+  Adestraelf      UTF-8      tag= 492:  11 hits
+  Akkk            ASCII      tag=  65:  2 hits
+  Akkk            ASCII      tag= 492:  13 hits
+  Akkk            UTF-8      tag=  65:  2 hits
+  Akkk            UTF-8      tag= 492:  13 hits
+  Amandx          ASCII      tag=  65:  9 hits
+  Amandx          ASCII      tag= 492:  11 hits
+  Amandx          UTF-8      tag=  65:  9 hits
+  Amandx          UTF-8      tag= 492:  11 hits
+  Anemos          ASCII      tag= 492:  3 hits
+  Anemos          UTF-16LE   tag= 492:  7 hits
+  Anemos          UTF-8      tag= 492:  3 hits
+  Anttt           ASCII      tag=  65:  1 hits
+  Anttt           ASCII      tag= 492:  9 hits
+  Anttt           UTF-8      tag=  65:  1 hits
+  Anttt           UTF-8      tag= 492:  9 hits
+  Aodebiao        ASCII      tag=  65:  3 hits
+  Aodebiao        ASCII      tag= 492:  3 hits
+  Aodebiao        UTF-8      tag=  65:  3 hits
+  Aodebiao        UTF-8      tag= 492:  3 hits
+  Aurelinho       ASCII      tag=  65:  7 hits
+  Aurelinho       ASCII      tag= 492:  4 hits
+  Aurelinho       UTF-8      tag=  65:  7 hits
+  Aurelinho       UTF-8      tag= 492:  4 hits
+  Azul            ASCII      tag= 492:  1 hits
+  Azul            UTF-8      tag= 492:  1 hits
+  Banmidou        ASCII      tag= 492:  1 hits
+  Banmidou        UTF-8      tag= 492:  1 hits
+  Baxote          ASCII      tag=   9:  1 hits
+  Baxote          ASCII      tag=  65:  18 hits
+  Baxote          ASCII      tag= 492:  30 hits
+  Baxote          UTF-16LE   tag=  65:  1 hits
+  Baxote          UTF-16LE   tag= 492:  1 hits
+  Baxote          UTF-8      tag=   9:  1 hits
+  Baxote          UTF-8      tag=  65:  18 hits
+  Baxote          UTF-8      tag= 492:  30 hits
+  Bibobi          ASCII      tag=  65:  3 hits
+  Bibobi          ASCII      tag= 492:  1 hits
+  Bibobi          UTF-16LE   tag= 492:  7 hits
+  Bibobi          UTF-8      tag=  65:  3 hits
+  Bibobi          UTF-8      tag= 492:  1 hits
+  Bjergsen        ASCII      tag=  65:  2 hits
+  Bjergsen        ASCII      tag= 492:  3 hits
+  Bjergsen        UTF-8      tag=  65:  2 hits
+  Bjergsen        UTF-8      tag= 492:  3 hits
+  Brokeblade      ASCII      tag= 551:  1 hits
+  Brokeblade      UTF-8      tag= 551:  1 hits
+  Brutaly         ASCII      tag=  65:  2 hits
+  Brutaly         UTF-16LE   tag= 492:  1 hits
+  Brutaly         UTF-8      tag=  65:  2 hits
+  Bunequinho      ASCII      tag=  65:  11 hits
+  Bunequinho      ASCII      tag= 492:  21 hits
+  Bunequinho      UTF-8      tag=  65:  11 hits
+  Bunequinho      UTF-8      tag= 492:  21 hits
+  Caloteira       ASCII      tag=  65:  3 hits
+  Caloteira       ASCII      tag= 492:  10 hits
+  Caloteira       UTF-8      tag=  65:  3 hits
+  Caloteira       UTF-8      tag= 492:  10 hits
+  Centablg        ASCII      tag= 492:  1 hits
+  Centablg        ASCII      tag= 551:  1 hits
+  Centablg        UTF-8      tag= 492:  1 hits
+  Centablg        UTF-8      tag= 551:  1 hits
+  Charmiinho      ASCII      tag=  65:  12 hits
+  Charmiinho      ASCII      tag= 492:  10 hits
+  Charmiinho      UTF-8      tag=  65:  12 hits
+  Charmiinho      UTF-8      tag= 492:  10 hits
+  Chronus         ASCII      tag=  65:  2 hits
+  Chronus         ASCII      tag= 492:  5 hits
+  Chronus         UTF-16LE   tag= 492:  1 hits
+  Chronus         UTF-8      tag=  65:  2 hits
+  Chronus         UTF-8      tag= 492:  5 hits
+  Crasique        ASCII      tag=  65:  7 hits
+  Crasique        ASCII      tag= 492:  1 hits
+  Crasique        UTF-8      tag=  65:  7 hits
+  Crasique        UTF-8      tag= 492:  1 hits
+  Death           ASCII      tag= 492:  1 hits
+  Death           UTF-8      tag= 492:  1 hits
+  Deitoupq        ASCII      tag= 492:  3 hits
+  Deitoupq        ASCII      tag= 551:  1 hits
+  Deitoupq        UTF-8      tag= 492:  3 hits
+  Deitoupq        UTF-8      tag= 551:  1 hits
+  Desutil         ASCII      tag=   9:  1 hits
+  Desutil         ASCII      tag=  65:  1 hits
+  Desutil         ASCII      tag= 492:  2 hits
+  Desutil         UTF-8      tag=   9:  1 hits
+  Desutil         UTF-8      tag=  65:  1 hits
+  Desutil         UTF-8      tag= 492:  2 hits
+  Dkdelas         ASCII      tag=  65:  2 hits
+  Dkdelas         ASCII      tag= 492:  3 hits
+  Dkdelas         UTF-8      tag=  65:  2 hits
+  Dkdelas         UTF-8      tag= 492:  3 hits
+  Donkja          ASCII      tag=  65:  2 hits
+  Donkja          ASCII      tag= 492:  1 hits
+  Donkja          UTF-8      tag=  65:  2 hits
+  Donkja          UTF-8      tag= 492:  1 hits
+  Eamor           ASCII      tag= 492:  1 hits
+  Eamor           UTF-8      tag= 492:  1 hits
+  Fabclover       ASCII      tag=   9:  1 hits
+  Fabclover       ASCII      tag=  65:  1 hits
+  Fabclover       UTF-16BE   tag=  65:  2 hits
+  Fabclover       UTF-16LE   tag=  65:  2 hits
+  Fabclover       UTF-8      tag=   9:  1 hits
+  Fabclover       UTF-8      tag=  65:  1 hits
+  Fardais         ASCII      tag=  65:  1 hits
+  Fardais         ASCII      tag= 492:  2 hits
+  Fardais         UTF-8      tag=  65:  1 hits
+  Fardais         UTF-8      tag= 492:  2 hits
+  Favor           ASCII      tag= 492:  2 hits
+  Favor           UTF-8      tag= 492:  2 hits
+  Fvck            ASCII      tag= 492:  1 hits
+  Fvck            UTF-8      tag= 492:  1 hits
+  Gank            ASCII      tag= 492:  3 hits
+  Gank            UTF-16LE   tag=  65:  1 hits
+  Gank            UTF-8      tag= 492:  3 hits
+  Gastavilao      ASCII      tag= 492:  1 hits
+  Gastavilao      UTF-8      tag= 492:  1 hits
+  Geototoso       ASCII      tag=  65:  2 hits
+  Geototoso       ASCII      tag= 492:  3 hits
+  Geototoso       UTF-8      tag=  65:  2 hits
+  Geototoso       UTF-8      tag= 492:  3 hits
+  Ginny           ASCII      tag=  65:  3 hits
+  Ginny           ASCII      tag= 492:  11 hits
+  Ginny           UTF-16LE   tag=  65:  1 hits
+  Ginny           UTF-8      tag=  65:  3 hits
+  Ginny           UTF-8      tag= 492:  11 hits
+  Glamurosa       ASCII      tag=  65:  3 hits
+  Glamurosa       ASCII      tag= 492:  4 hits
+  Glamurosa       UTF-8      tag=  65:  3 hits
+  Glamurosa       UTF-8      tag= 492:  4 hits
+  Glorylord       ASCII      tag=   9:  1 hits
+  Glorylord       ASCII      tag=  65:  1 hits
+  Glorylord       ASCII      tag= 492:  5 hits
+  Glorylord       UTF-8      tag=   9:  1 hits
+  Glorylord       UTF-8      tag=  65:  1 hits
+  Glorylord       UTF-8      tag= 492:  5 hits
+  Gloss           ASCII      tag=  65:  5 hits
+  Gloss           ASCII      tag= 492:  26 hits
+  Gloss           UTF-16LE   tag=  65:  1 hits
+  Gloss           UTF-8      tag=  65:  5 hits
+  Gloss           UTF-8      tag= 492:  26 hits
+  Godfast         ASCII      tag= 492:  3 hits
+  Godfast         UTF-8      tag= 492:  3 hits
+  Guagua          ASCII      tag=  65:  2 hits
+  Guagua          ASCII      tag= 492:  1 hits
+  Guagua          UTF-8      tag=  65:  2 hits
+  Guagua          UTF-8      tag= 492:  1 hits
+  Herrah          ASCII      tag=  65:  11 hits
+  Herrah          ASCII      tag= 492:  27 hits
+  Herrah          UTF-8      tag=  65:  11 hits
+  Herrah          UTF-8      tag= 492:  27 hits
+  Hipocrita       ASCII      tag= 492:  1 hits
+  Hipocrita       UTF-8      tag= 492:  1 hits
+  Honggee         ASCII      tag= 492:  8 hits
+  Honggee         UTF-8      tag= 492:  8 hits
+  Huopao          ASCII      tag= 492:  1 hits
+  Huopao          UTF-16LE   tag= 492:  7 hits
+  Huopao          UTF-8      tag= 492:  1 hits
+  Jokermwc        ASCII      tag= 551:  1 hits
+  Jokermwc        UTF-8      tag= 551:  1 hits
+  Joones          ASCII      tag=  65:  1 hits
+  Joones          ASCII      tag= 492:  1 hits
+  Joones          UTF-16LE   tag= 492:  5 hits
+  Joones          UTF-8      tag=  65:  1 hits
+  Joones          UTF-8      tag= 492:  1 hits
+  Kaliffado       ASCII      tag= 551:  1 hits
+  Kaliffado       UTF-8      tag= 551:  1 hits
+  Kblinho         ASCII      tag=  65:  2 hits
+  Kblinho         ASCII      tag= 492:  3 hits
+  Kblinho         UTF-8      tag=  65:  2 hits
+  Kblinho         UTF-8      tag= 492:  3 hits
+  KINGDOM         ASCII      tag= 492:  1 hits
+  KINGDOM         UTF-8      tag= 492:  1 hits
+  Lagspear        ASCII      tag=  65:  1 hits
+  Lagspear        UTF-8      tag=  65:  1 hits
+  Lanbo           ASCII      tag=  65:  1 hits
+  Lanbo           ASCII      tag= 492:  2 hits
+  Lanbo           UTF-16LE   tag= 492:  3 hits
+  Lanbo           UTF-8      tag=  65:  1 hits
+  Lanbo           UTF-8      tag= 492:  2 hits
+  Liangzzi        ASCII      tag= 492:  2 hits
+  Liangzzi        UTF-8      tag= 492:  2 hits
+  Lingboo         ASCII      tag=  65:  2 hits
+  Lingboo         ASCII      tag= 492:  5 hits
+  Lingboo         UTF-16LE   tag=  65:  2 hits
+  Lingboo         UTF-8      tag=  65:  2 hits
+  Lingboo         UTF-8      tag= 492:  5 hits
+  Lobopidaum      ASCII      tag= 551:  1 hits
+  Lobopidaum      UTF-8      tag= 551:  1 hits
+  Loowuiu         ASCII      tag=  65:  2 hits
+  Loowuiu         ASCII      tag= 492:  1 hits
+  Loowuiu         UTF-8      tag=  65:  2 hits
+  Loowuiu         UTF-8      tag= 492:  1 hits
+  Lordcydo        ASCII      tag= 492:  2 hits
+  Lordcydo        UTF-8      tag= 492:  2 hits
+  Lskylinel       ASCII      tag= 492:  1 hits
+  Lskylinel       UTF-8      tag= 492:  1 hits
+  Maciel          ASCII      tag= 492:  1 hits
+  Maciel          UTF-8      tag= 492:  1 hits
+  Magrin          ASCII      tag= 492:  4 hits
+  Magrin          UTF-8      tag= 492:  4 hits
+  Malik           ASCII      tag= 492:  1 hits
+  Malik           UTF-8      tag= 492:  1 hits
+  Mantou          ASCII      tag=  65:  2 hits
+  Mantou          ASCII      tag= 492:  17 hits
+  Mantou          UTF-8      tag=  65:  2 hits
+  Mantou          UTF-8      tag= 492:  17 hits
+  Marcelo         ASCII      tag= 492:  1 hits
+  Marcelo         UTF-8      tag= 492:  1 hits
+  Mengpo          UTF-16LE   tag=  65:  1 hits
+  Meupau          ASCII      tag= 492:  11 hits
+  Meupau          UTF-8      tag= 492:  11 hits
+  Micaelxd        ASCII      tag=   9:  1 hits
+  Micaelxd        ASCII      tag=  65:  14 hits
+  Micaelxd        ASCII      tag= 492:  7 hits
+  Micaelxd        UTF-8      tag=   9:  1 hits
+  Micaelxd        UTF-8      tag=  65:  14 hits
+  Micaelxd        UTF-8      tag= 492:  7 hits
+  Mlkdopo         ASCII      tag=  65:  2 hits
+  Mlkdopo         ASCII      tag= 492:  5 hits
+  Mlkdopo         UTF-16LE   tag=  65:  1 hits
+  Mlkdopo         UTF-8      tag=  65:  2 hits
+  Mlkdopo         UTF-8      tag= 492:  5 hits
+  Mobyuno         ASCII      tag= 492:  2 hits
+  Mobyuno         UTF-8      tag= 492:  2 hits
+  Molan           ASCII      tag=  65:  2 hits
+  Molan           ASCII      tag= 492:  11 hits
+  Molan           UTF-8      tag=  65:  2 hits
+  Molan           UTF-8      tag= 492:  11 hits
+  Moyu            ASCII      tag= 492:  3 hits
+  Moyu            UTF-8      tag= 492:  3 hits
+  Mudin           ASCII      tag= 551:  1 hits
+  Mudin           UTF-8      tag= 551:  1 hits
+  Ncro            ASCII      tag=  65:  1 hits
+  Ncro            ASCII      tag= 492:  4 hits
+  Ncro            UTF-16LE   tag=  65:  1 hits
+  Ncro            UTF-8      tag=  65:  1 hits
+  Ncro            UTF-8      tag= 492:  4 hits
+  Nerftotem       ASCII      tag=  65:  2 hits
+  Nerftotem       ASCII      tag= 492:  4 hits
+  Nerftotem       UTF-16LE   tag= 492:  1 hits
+  Nerftotem       UTF-8      tag=  65:  2 hits
+  Nerftotem       UTF-8      tag= 492:  4 hits
+  Neutroxxx       ASCII      tag= 492:  3 hits
+  Neutroxxx       UTF-8      tag= 492:  3 hits
+  Niukkuin        ASCII      tag= 492:  1 hits
+  Niukkuin        UTF-8      tag= 492:  1 hits
+  Novodk          ASCII      tag= 492:  3 hits
+  Novodk          UTF-8      tag= 492:  3 hits
+  Oldivici        ASCII      tag= 492:  1 hits
+  Oldivici        UTF-16LE   tag= 492:  7 hits
+  Oldivici        UTF-8      tag= 492:  1 hits
+  Omno            ASCII      tag= 492:  1 hits
+  Omno            UTF-16LE   tag= 492:  1 hits
+  Omno            UTF-8      tag= 492:  1 hits
+  Onehitwin       ASCII      tag=  65:  1 hits
+  Onehitwin       ASCII      tag= 492:  2 hits
+  Onehitwin       UTF-8      tag=  65:  1 hits
+  Onehitwin       UTF-8      tag= 492:  2 hits
+  Outlaws         ASCII      tag=  65:  2 hits
+  Outlaws         ASCII      tag= 492:  2 hits
+  Outlaws         UTF-16LE   tag= 492:  1 hits
+  Outlaws         UTF-8      tag=  65:  2 hits
+  Outlaws         UTF-8      tag= 492:  2 hits
+  Peoplebeck      ASCII      tag=  65:  1 hits
+  Peoplebeck      ASCII      tag= 492:  2 hits
+  Peoplebeck      UTF-8      tag=  65:  1 hits
+  Peoplebeck      UTF-8      tag= 492:  2 hits
+  Piabaking       ASCII      tag=  65:  1 hits
+  Piabaking       ASCII      tag= 492:  3 hits
+  Piabaking       UTF-8      tag=  65:  1 hits
+  Piabaking       UTF-8      tag= 492:  3 hits
+  Plzinxx         ASCII      tag= 492:  11 hits
+  Plzinxx         UTF-8      tag= 492:  11 hits
+  Really          ASCII      tag= 492:  1 hits
+  Really          UTF-8      tag= 492:  1 hits
+  Rhazarin        ASCII      tag=  65:  1 hits
+  Rhazarin        ASCII      tag= 492:  3 hits
+  Rhazarin        UTF-8      tag=  65:  1 hits
+  Rhazarin        UTF-8      tag= 492:  3 hits
+  Ruanz           ASCII      tag= 551:  1 hits
+  Ruanz           UTF-8      tag= 551:  1 hits
+  Shadowkat       ASCII      tag= 492:  7 hits
+  Shadowkat       UTF-8      tag= 492:  7 hits
+  Shadowseer      ASCII      tag= 492:  2 hits
+  Shadowseer      UTF-8      tag= 492:  2 hits
+  Sherry          ASCII      tag=   9:  1 hits
+  Sherry          ASCII      tag=  65:  1 hits
+  Sherry          ASCII      tag= 492:  3 hits
+  Sherry          UTF-8      tag=   9:  1 hits
+  Sherry          UTF-8      tag=  65:  1 hits
+  Sherry          UTF-8      tag= 492:  3 hits
+  Sherrygin       ASCII      tag=   9:  1 hits
+  Sherrygin       ASCII      tag=  65:  1 hits
+  Sherrygin       ASCII      tag= 492:  3 hits
+  Sherrygin       UTF-8      tag=   9:  1 hits
+  Sherrygin       UTF-8      tag=  65:  1 hits
+  Sherrygin       UTF-8      tag= 492:  3 hits
+  Sicotin         ASCII      tag=  65:  10 hits
+  Sicotin         ASCII      tag= 492:  4 hits
+  Sicotin         UTF-8      tag=  65:  10 hits
+  Sicotin         UTF-8      tag= 492:  4 hits
+  Susubeast       ASCII      tag=  65:  3 hits
+  Susubeast       ASCII      tag= 492:  4 hits
+  Susubeast       UTF-8      tag=  65:  3 hits
+  Susubeast       UTF-8      tag= 492:  4 hits
+  Swqs            ASCII      tag=  65:  3 hits
+  Swqs            ASCII      tag= 492:  3 hits
+  Swqs            UTF-8      tag=  65:  3 hits
+  Swqs            UTF-8      tag= 492:  3 hits
+  Szenkai         ASCII      tag= 551:  1 hits
+  Szenkai         UTF-8      tag= 551:  1 hits
+  Tapetee         ASCII      tag=  65:  8 hits
+  Tapetee         ASCII      tag= 492:  16 hits
+  Tapetee         UTF-8      tag=  65:  8 hits
+  Tapetee         UTF-8      tag= 492:  16 hits
+  Thanatus        ASCII      tag=  65:  12 hits
+  Thanatus        ASCII      tag= 492:  6 hits
+  Thanatus        UTF-8      tag=  65:  12 hits
+  Thanatus        UTF-8      tag= 492:  6 hits
+  Tiago           ASCII      tag= 492:  3 hits
+  Tiago           UTF-8      tag= 492:  3 hits
+  Tisa            ASCII      tag=  65:  1 hits
+  Tisa            ASCII      tag= 492:  3 hits
+  Tisa            UTF-8      tag=  65:  1 hits
+  Tisa            UTF-8      tag= 492:  3 hits
+  Vader           ASCII      tag=  65:  9 hits
+  Vader           ASCII      tag= 492:  13 hits
+  Vader           UTF-8      tag=  65:  9 hits
+  Vader           UTF-8      tag= 492:  13 hits
+  Vitorz          ASCII      tag= 492:  1 hits
+  Vitorz          UTF-8      tag= 492:  1 hits
+  Vvvvvv          ASCII      tag=  65:  7 hits
+  Vvvvvv          UTF-8      tag=  65:  7 hits
+  Wdmushroom      ASCII      tag= 492:  1 hits
+  Wdmushroom      UTF-8      tag= 492:  1 hits
+  Wenky           ASCII      tag=  65:  2 hits
+  Wenky           ASCII      tag= 492:  8 hits
+  Wenky           UTF-8      tag=  65:  2 hits
+  Wenky           UTF-8      tag= 492:  8 hits
+  Wexu            ASCII      tag= 551:  1 hits
+  Wexu            UTF-8      tag= 551:  1 hits
+  Wutian          ASCII      tag= 492:  3 hits
+  Wutian          UTF-8      tag= 492:  3 hits
+  Xamaxxx         ASCII      tag= 492:  2 hits
+  Xamaxxx         UTF-8      tag= 492:  2 hits
+  Xiaofenta       ASCII      tag= 492:  5 hits
+  Xiaofenta       UTF-8      tag= 492:  5 hits
+  Yllon           ASCII      tag=  65:  3 hits
+  Yllon           ASCII      tag= 492:  7 hits
+  Yllon           UTF-8      tag=  65:  3 hits
+  Yllon           UTF-8      tag= 492:  7 hits
+  YOLO            ASCII      tag= 492:  1 hits
+  YOLO            UTF-8      tag= 492:  1 hits
+  Zamioculca      ASCII      tag=  65:  2 hits
+  Zamioculca      ASCII      tag= 492:  3 hits
+  Zamioculca      UTF-16LE   tag=  65:  1 hits
+  Zamioculca      UTF-8      tag=  65:  2 hits
+  Zamioculca      UTF-8      tag= 492:  3 hits
+
+===== SUMMARY TABLE =====
+Nick            Encoding      Tag     Hits
+Adestraelf      ASCII          65        3
+Adestraelf      ASCII         492       11
+Adestraelf      UTF-8          65        3
+Adestraelf      UTF-8         492       11
+Akkk            ASCII          65        2
+Akkk            ASCII         492       13
+Akkk            UTF-8          65        2
+Akkk            UTF-8         492       13
+Amandx          ASCII          65        9
+Amandx          ASCII         492       11
+Amandx          UTF-8          65        9
+Amandx          UTF-8         492       11
+Anemos          ASCII         492        3
+Anemos          UTF-16LE      492        7
+Anemos          UTF-8         492        3
+Anttt           ASCII          65        1
+Anttt           ASCII         492        9
+Anttt           UTF-8          65        1
+Anttt           UTF-8         492        9
+Aodebiao        ASCII          65        3
+Aodebiao        ASCII         492        3
+Aodebiao        UTF-8          65        3
+Aodebiao        UTF-8         492        3
+Aurelinho       ASCII          65        7
+Aurelinho       ASCII         492        4
+Aurelinho       UTF-8          65        7
+Aurelinho       UTF-8         492        4
+Azul            ASCII         492        1
+Azul            UTF-8         492        1
+Banmidou        ASCII         492        1
+Banmidou        UTF-8         492        1
+Baxote          ASCII           9        1
+Baxote          ASCII          65       18
+Baxote          ASCII         492       30
+Baxote          UTF-16LE       65        1
+Baxote          UTF-16LE      492        1
+Baxote          UTF-8           9        1
+Baxote          UTF-8          65       18
+Baxote          UTF-8         492       30
+Bibobi          ASCII          65        3
+Bibobi          ASCII         492        1
+Bibobi          UTF-16LE      492        7
+Bibobi          UTF-8          65        3
+Bibobi          UTF-8         492        1
+Bjergsen        ASCII          65        2
+Bjergsen        ASCII         492        3
+Bjergsen        UTF-8          65        2
+Bjergsen        UTF-8         492        3
+Brokeblade      ASCII         551        1
+Brokeblade      UTF-8         551        1
+Brutaly         ASCII          65        2
+Brutaly         UTF-16LE      492        1
+Brutaly         UTF-8          65        2
+Bunequinho      ASCII          65       11
+Bunequinho      ASCII         492       21
+Bunequinho      UTF-8          65       11
+Bunequinho      UTF-8         492       21
+Caloteira       ASCII          65        3
+Caloteira       ASCII         492       10
+Caloteira       UTF-8          65        3
+Caloteira       UTF-8         492       10
+Centablg        ASCII         492        1
+Centablg        ASCII         551        1
+Centablg        UTF-8         492        1
+Centablg        UTF-8         551        1
+Charmiinho      ASCII          65       12
+Charmiinho      ASCII         492       10
+Charmiinho      UTF-8          65       12
+Charmiinho      UTF-8         492       10
+Chronus         ASCII          65        2
+Chronus         ASCII         492        5
+Chronus         UTF-16LE      492        1
+Chronus         UTF-8          65        2
+Chronus         UTF-8         492        5
+Crasique        ASCII          65        7
+Crasique        ASCII         492        1
+Crasique        UTF-8          65        7
+Crasique        UTF-8         492        1
+Death           ASCII         492        1
+Death           UTF-8         492        1
+Deitoupq        ASCII         492        3
+Deitoupq        ASCII         551        1
+Deitoupq        UTF-8         492        3
+Deitoupq        UTF-8         551        1
+Desutil         ASCII           9        1
+Desutil         ASCII          65        1
+Desutil         ASCII         492        2
+Desutil         UTF-8           9        1
+Desutil         UTF-8          65        1
+Desutil         UTF-8         492        2
+Dkdelas         ASCII          65        2
+Dkdelas         ASCII         492        3
+Dkdelas         UTF-8          65        2
+Dkdelas         UTF-8         492        3
+Donkja          ASCII          65        2
+Donkja          ASCII         492        1
+Donkja          UTF-8          65        2
+Donkja          UTF-8         492        1
+Eamor           ASCII         492        1
+Eamor           UTF-8         492        1
+Fabclover       ASCII           9        1
+Fabclover       ASCII          65        1
+Fabclover       UTF-16BE       65        2
+Fabclover       UTF-16LE       65        2
+Fabclover       UTF-8           9        1
+Fabclover       UTF-8          65        1
+Fardais         ASCII          65        1
+Fardais         ASCII         492        2
+Fardais         UTF-8          65        1
+Fardais         UTF-8         492        2
+Favor           ASCII         492        2
+Favor           UTF-8         492        2
+Fvck            ASCII         492        1
+Fvck            UTF-8         492        1
+Gank            ASCII         492        3
+Gank            UTF-16LE       65        1
+Gank            UTF-8         492        3
+Gastavilao      ASCII         492        1
+Gastavilao      UTF-8         492        1
+Geototoso       ASCII          65        2
+Geototoso       ASCII         492        3
+Geototoso       UTF-8          65        2
+Geototoso       UTF-8         492        3
+Ginny           ASCII          65        3
+Ginny           ASCII         492       11
+Ginny           UTF-16LE       65        1
+Ginny           UTF-8          65        3
+Ginny           UTF-8         492       11
+Glamurosa       ASCII          65        3
+Glamurosa       ASCII         492        4
+Glamurosa       UTF-8          65        3
+Glamurosa       UTF-8         492        4
+Glorylord       ASCII           9        1
+Glorylord       ASCII          65        1
+Glorylord       ASCII         492        5
+Glorylord       UTF-8           9        1
+Glorylord       UTF-8          65        1
+Glorylord       UTF-8         492        5
+Gloss           ASCII          65        5
+Gloss           ASCII         492       26
+Gloss           UTF-16LE       65        1
+Gloss           UTF-8          65        5
+Gloss           UTF-8         492       26
+Godfast         ASCII         492        3
+Godfast         UTF-8         492        3
+Guagua          ASCII          65        2
+Guagua          ASCII         492        1
+Guagua          UTF-8          65        2
+Guagua          UTF-8         492        1
+Herrah          ASCII          65       11
+Herrah          ASCII         492       27
+Herrah          UTF-8          65       11
+Herrah          UTF-8         492       27
+Hipocrita       ASCII         492        1
+Hipocrita       UTF-8         492        1
+Honggee         ASCII         492        8
+Honggee         UTF-8         492        8
+Huopao          ASCII         492        1
+Huopao          UTF-16LE      492        7
+Huopao          UTF-8         492        1
+Jokermwc        ASCII         551        1
+Jokermwc        UTF-8         551        1
+Joones          ASCII          65        1
+Joones          ASCII         492        1
+Joones          UTF-16LE      492        5
+Joones          UTF-8          65        1
+Joones          UTF-8         492        1
+Kaliffado       ASCII         551        1
+Kaliffado       UTF-8         551        1
+Kblinho         ASCII          65        2
+Kblinho         ASCII         492        3
+Kblinho         UTF-8          65        2
+Kblinho         UTF-8         492        3
+KINGDOM         ASCII         492        1
+KINGDOM         UTF-8         492        1
+Lagspear        ASCII          65        1
+Lagspear        UTF-8          65        1
+Lanbo           ASCII          65        1
+Lanbo           ASCII         492        2
+Lanbo           UTF-16LE      492        3
+Lanbo           UTF-8          65        1
+Lanbo           UTF-8         492        2
+Liangzzi        ASCII         492        2
+Liangzzi        UTF-8         492        2
+Lingboo         ASCII          65        2
+Lingboo         ASCII         492        5
+Lingboo         UTF-16LE       65        2
+Lingboo         UTF-8          65        2
+Lingboo         UTF-8         492        5
+Lobopidaum      ASCII         551        1
+Lobopidaum      UTF-8         551        1
+Loowuiu         ASCII          65        2
+Loowuiu         ASCII         492        1
+Loowuiu         UTF-8          65        2
+Loowuiu         UTF-8         492        1
+Lordcydo        ASCII         492        2
+Lordcydo        UTF-8         492        2
+Lskylinel       ASCII         492        1
+Lskylinel       UTF-8         492        1
+Maciel          ASCII         492        1
+Maciel          UTF-8         492        1
+Magrin          ASCII         492        4
+Magrin          UTF-8         492        4
+Malik           ASCII         492        1
+Malik           UTF-8         492        1
+Mantou          ASCII          65        2
+Mantou          ASCII         492       17
+Mantou          UTF-8          65        2
+Mantou          UTF-8         492       17
+Marcelo         ASCII         492        1
+Marcelo         UTF-8         492        1
+Mengpo          UTF-16LE       65        1
+Meupau          ASCII         492       11
+Meupau          UTF-8         492       11
+Micaelxd        ASCII           9        1
+Micaelxd        ASCII          65       14
+Micaelxd        ASCII         492        7
+Micaelxd        UTF-8           9        1
+Micaelxd        UTF-8          65       14
+Micaelxd        UTF-8         492        7
+Mlkdopo         ASCII          65        2
+Mlkdopo         ASCII         492        5
+Mlkdopo         UTF-16LE       65        1
+Mlkdopo         UTF-8          65        2
+Mlkdopo         UTF-8         492        5
+Mobyuno         ASCII         492        2
+Mobyuno         UTF-8         492        2
+Molan           ASCII          65        2
+Molan           ASCII         492       11
+Molan           UTF-8          65        2
+Molan           UTF-8         492       11
+Moyu            ASCII         492        3
+Moyu            UTF-8         492        3
+Mudin           ASCII         551        1
+Mudin           UTF-8         551        1
+Ncro            ASCII          65        1
+Ncro            ASCII         492        4
+Ncro            UTF-16LE       65        1
+Ncro            UTF-8          65        1
+Ncro            UTF-8         492        4
+Nerftotem       ASCII          65        2
+Nerftotem       ASCII         492        4
+Nerftotem       UTF-16LE      492        1
+Nerftotem       UTF-8          65        2
+Nerftotem       UTF-8         492        4
+Neutroxxx       ASCII         492        3
+Neutroxxx       UTF-8         492        3
+Niukkuin        ASCII         492        1
+Niukkuin        UTF-8         492        1
+Novodk          ASCII         492        3
+Novodk          UTF-8         492        3
+Oldivici        ASCII         492        1
+Oldivici        UTF-16LE      492        7
+Oldivici        UTF-8         492        1
+Omno            ASCII         492        1
+Omno            UTF-16LE      492        1
+Omno            UTF-8         492        1
+Onehitwin       ASCII          65        1
+Onehitwin       ASCII         492        2
+Onehitwin       UTF-8          65        1
+Onehitwin       UTF-8         492        2
+Outlaws         ASCII          65        2
+Outlaws         ASCII         492        2
+Outlaws         UTF-16LE      492        1
+Outlaws         UTF-8          65        2
+Outlaws         UTF-8         492        2
+Peoplebeck      ASCII          65        1
+Peoplebeck      ASCII         492        2
+Peoplebeck      UTF-8          65        1
+Peoplebeck      UTF-8         492        2
+Piabaking       ASCII          65        1
+Piabaking       ASCII         492        3
+Piabaking       UTF-8          65        1
+Piabaking       UTF-8         492        3
+Plzinxx         ASCII         492       11
+Plzinxx         UTF-8         492       11
+Really          ASCII         492        1
+Really          UTF-8         492        1
+Rhazarin        ASCII          65        1
+Rhazarin        ASCII         492        3
+Rhazarin        UTF-8          65        1
+Rhazarin        UTF-8         492        3
+Ruanz           ASCII         551        1
+Ruanz           UTF-8         551        1
+Shadowkat       ASCII         492        7
+Shadowkat       UTF-8         492        7
+Shadowseer      ASCII         492        2
+Shadowseer      UTF-8         492        2
+Sherry          ASCII           9        1
+Sherry          ASCII          65        1
+Sherry          ASCII         492        3
+Sherry          UTF-8           9        1
+Sherry          UTF-8          65        1
+Sherry          UTF-8         492        3
+Sherrygin       ASCII           9        1
+Sherrygin       ASCII          65        1
+Sherrygin       ASCII         492        3
+Sherrygin       UTF-8           9        1
+Sherrygin       UTF-8          65        1
+Sherrygin       UTF-8         492        3
+Sicotin         ASCII          65       10
+Sicotin         ASCII         492        4
+Sicotin         UTF-8          65       10
+Sicotin         UTF-8         492        4
+Susubeast       ASCII          65        3
+Susubeast       ASCII         492        4
+Susubeast       UTF-8          65        3
+Susubeast       UTF-8         492        4
+Swqs            ASCII          65        3
+Swqs            ASCII         492        3
+Swqs            UTF-8          65        3
+Swqs            UTF-8         492        3
+Szenkai         ASCII         551        1
+Szenkai         UTF-8         551        1
+Tapetee         ASCII          65        8
+Tapetee         ASCII         492       16
+Tapetee         UTF-8          65        8
+Tapetee         UTF-8         492       16
+Thanatus        ASCII          65       12
+Thanatus        ASCII         492        6
+Thanatus        UTF-8          65       12
+Thanatus        UTF-8         492        6
+Tiago           ASCII         492        3
+Tiago           UTF-8         492        3
+Tisa            ASCII          65        1
+Tisa            ASCII         492        3
+Tisa            UTF-8          65        1
+Tisa            UTF-8         492        3
+Vader           ASCII          65        9
+Vader           ASCII         492       13
+Vader           UTF-8          65        9
+Vader           UTF-8         492       13
+Vitorz          ASCII         492        1
+Vitorz          UTF-8         492        1
+Vvvvvv          ASCII          65        7
+Vvvvvv          UTF-8          65        7
+Wdmushroom      ASCII         492        1
+Wdmushroom      UTF-8         492        1
+Wenky           ASCII          65        2
+Wenky           ASCII         492        8
+Wenky           UTF-8          65        2
+Wenky           UTF-8         492        8
+Wexu            ASCII         551        1
+Wexu            UTF-8         551        1
+Wutian          ASCII         492        3
+Wutian          UTF-8         492        3
+Xamaxxx         ASCII         492        2
+Xamaxxx         UTF-8         492        2
+Xiaofenta       ASCII         492        5
+Xiaofenta       UTF-8         492        5
+Yllon           ASCII          65        3
+Yllon           ASCII         492        7
+Yllon           UTF-8          65        3
+Yllon           UTF-8         492        7
+YOLO            ASCII         492        1
+YOLO            UTF-8         492        1
+Zamioculca      ASCII          65        2
+Zamioculca      ASCII         492        3
+Zamioculca      UTF-16LE       65        1
+Zamioculca      UTF-8          65        2
+Zamioculca      UTF-8         492        3
+
+
+============================================
+Dump: raid_boss2_20260919_103642
+============================================
+
+[I] segments loaded: 2536
+[I] TLV messages parsed: 4884
+[I] S2C: 443579 bytes, 443579 walked
+[I] known players (valid range): 437
+
+===== RESULTS =====
+Total hits: 68
+
+  Analsex         ASCII      tag= 492:  1 hits
+  Analsex         UTF-8      tag= 492:  1 hits
+  Anttt           ASCII      tag= 492:  1 hits
+  Anttt           UTF-8      tag= 492:  1 hits
+  Bankai          ASCII      tag= 492:  1 hits
+  Bankai          UTF-8      tag= 492:  1 hits
+  Baxote          ASCII      tag= 492:  2 hits
+  Baxote          UTF-8      tag= 492:  2 hits
+  Bibobi          ASCII      tag= 492:  1 hits
+  Bibobi          UTF-8      tag= 492:  1 hits
+  Cavalarian      ASCII      tag=  65:  2 hits
+  Cavalarian      ASCII      tag= 492:  2 hits
+  Cavalarian      UTF-8      tag=  65:  2 hits
+  Cavalarian      UTF-8      tag= 492:  2 hits
+  Centablg        ASCII      tag= 492:  1 hits
+  Centablg        UTF-8      tag= 492:  1 hits
+  Ginny           ASCII      tag= 492:  1 hits
+  Ginny           UTF-8      tag= 492:  1 hits
+  Herrah          ASCII      tag= 492:  2 hits
+  Herrah          UTF-8      tag= 492:  2 hits
+  Miolos          ASCII      tag= 492:  1 hits
+  Miolos          UTF-8      tag= 492:  1 hits
+  Molan           ASCII      tag=  65:  1 hits
+  Molan           ASCII      tag= 492:  3 hits
+  Molan           UTF-8      tag=  65:  1 hits
+  Molan           UTF-8      tag= 492:  3 hits
+  Moyu            ASCII      tag=  65:  1 hits
+  Moyu            ASCII      tag= 492:  2 hits
+  Moyu            UTF-8      tag=  65:  1 hits
+  Moyu            UTF-8      tag= 492:  2 hits
+  Outlaws         ASCII      tag= 492:  1 hits
+  Outlaws         UTF-8      tag= 492:  1 hits
+  Plzinxx         ASCII      tag= 492:  3 hits
+  Plzinxx         UTF-8      tag= 492:  3 hits
+  Swqs            ASCII      tag=  65:  3 hits
+  Swqs            ASCII      tag= 492:  4 hits
+  Swqs            UTF-8      tag=  65:  3 hits
+  Swqs            UTF-8      tag= 492:  4 hits
+  Vvvvvv          ASCII      tag=  65:  1 hits
+  Vvvvvv          UTF-8      tag=  65:  1 hits
+
+===== SUMMARY TABLE =====
+Nick            Encoding      Tag     Hits
+Analsex         ASCII         492        1
+Analsex         UTF-8         492        1
+Anttt           ASCII         492        1
+Anttt           UTF-8         492        1
+Bankai          ASCII         492        1
+Bankai          UTF-8         492        1
+Baxote          ASCII         492        2
+Baxote          UTF-8         492        2
+Bibobi          ASCII         492        1
+Bibobi          UTF-8         492        1
+Cavalarian      ASCII          65        2
+Cavalarian      ASCII         492        2
+Cavalarian      UTF-8          65        2
+Cavalarian      UTF-8         492        2
+Centablg        ASCII         492        1
+Centablg        UTF-8         492        1
+Ginny           ASCII         492        1
+Ginny           UTF-8         492        1
+Herrah          ASCII         492        2
+Herrah          UTF-8         492        2
+Miolos          ASCII         492        1
+Miolos          UTF-8         492        1
+Molan           ASCII          65        1
+Molan           ASCII         492        3
+Molan           UTF-8          65        1
+Molan           UTF-8         492        3
+Moyu            ASCII          65        1
+Moyu            ASCII         492        2
+Moyu            UTF-8          65        1
+Moyu            UTF-8         492        2
+Outlaws         ASCII         492        1
+Outlaws         UTF-8         492        1
+Plzinxx         ASCII         492        3
+Plzinxx         UTF-8         492        3
+Swqs            ASCII          65        3
+Swqs            ASCII         492        4
+Swqs            UTF-8          65        3
+Swqs            UTF-8         492        4
+Vvvvvv          ASCII          65        1
+Vvvvvv          UTF-8          65        1
+
+

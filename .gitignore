@@ -1,0 +1,29 @@
+# Runtime state — não commitar
+ws-engine.config.json
+ws-engine.db
+ws-engine.db-journal
+ws-engine.me.txt
+ws-engine.nicknames.json
+ws-engine.mem-*.json
+wsengine.log
+memscan-debug.jsonl
+class-cands.txt
+WS-engine.exe.WebView2/
+
+# Capturas e dumps
+captures/
+dumps/
+snapshots/
+
+# Build side-effects (recompila a hora que quiser)
+WS-engine.exe
+memscan.exe
+*.pdb
+
+# Scratch
+_*.txt
+_*.bin
+
+# IDE
+.vs/
+*.user

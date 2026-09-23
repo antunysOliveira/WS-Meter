@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8" />
+    <title>WS-engine</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <header class="toolbar">
+        <div class="btn-group">
+            <button id="btn-reset" title="Nova luta — zera os números da luta atual (mantém captura, nomes, classes e pet→dono)">&#8635;</button>
+            <button id="btn-copy" title="Copiar top para área de transferência">&#128203;</button>
+            <button id="btn-capture" class="btn-capture" title="Parar captura">&#9724;</button>
+        </div>
+        <div class="bout">Luta: <span id="bout-timer">0:00</span></div>
+        <div id="capture-indicator" class="capture-indicator capturing" title="">
+            <span class="dot"></span><span id="capture-label">capturando</span>
+        </div>
+        <div id="area-counter" class="area-counter" title="Entidades visíveis na sua área agora (ENTER=tag25 · LEAVE=tag13)">
+            <span class="area-players"><span id="area-players-n">0</span> jog</span>
+            <span class="area-sep">·</span>
+            <span class="area-mobs"><span id="area-mobs-n">0</span> mobs</span>
+        </div>
+        <div class="tool-right">
+            <button id="btn-toggle-mobs" class="btn-icon-mini" title="Mostrar/ocultar dano de mobs no leaderboard">&#128031;</button>
+            <div class="clock" id="clock">--:--</div>
+        </div>
+    </header>
+
+    <nav class="tabs">
+        <button class="tab-btn active" data-tab="tab-luta">Luta</button>
+        <button class="tab-btn" data-tab="tab-jogadores">Jogadores</button>
+    </nav>
+
+    <!-- ============ TAB: LUTA ============ -->
+    <section id="tab-luta" class="tab-panel active">
+        <div class="filter-row">
+            <input type="text" id="filter-input" placeholder="Filtrar por alvo..." />
+        </div>
+        <main class="table-wrap">
+            <table class="leaderboard">
+                <thead>
+                    <tr>
+                        <th class="col-name">Nome</th>
+                        <th class="col-num col-damage sorted">Dano</th>
+                        <th class="col-num col-received">Recebido</th>
+                        <th class="col-num col-heal-done" title="Cura total do jogador — inclui auto-cura. Bruta (contém overheal). Pet→dono somado.">Cura total</th>
+                        <th class="col-num col-dps">DPS</th>
+                        <th class="col-num col-max">Máx</th>
+                    </tr>
+                </thead>
+                <tbody id="lb-body"></tbody>
+            </table>
+        </main>
+    </section>
+
+    <!-- ============ TAB: JOGADORES ============ -->
+    <section id="tab-jogadores" class="tab-panel">
+        <div class="players-summary">
+            <div class="summary-card" title="Jogadores/mobs/pets atualmente visíveis. Entrada via tag=25 [MEDIDO] e saída via tag=13 LEAVE [MEDIDO 2026-09-22]. Janela 30min só cobre LEAVE perdido; real leaver some na hora."><div class="summary-num" id="area-total">0</div><div class="summary-label">total</div></div>
+            <div class="summary-card summary-players"><div class="summary-num" id="area-players">0</div><div class="summary-label">jogadores</div></div>
+            <div class="summary-card summary-pets"><div class="summary-num" id="area-pets">0</div><div class="summary-label">invocações</div></div>
+            <div class="summary-card summary-mobs"><div class="summary-num" id="area-mobs">0</div><div class="summary-label">mobs</div></div>
+            <div class="summary-card summary-other" id="card-other"><div class="summary-num" id="area-other">0</div><div class="summary-label">outros</div></div>
+            <div class="summary-card summary-guilds"><div class="summary-num" id="guilds-total">0</div><div class="summary-label">guildas presentes</div></div>
+        </div>
+        <div class="filter-row">
+            <input type="text" id="players-filter" placeholder="Filtrar por nome ou guilda..." />
+            <span class="filter-note" title="Buffs aplicados antes do jogador entrar na sua área não aparecem — o cliente só recebe eventos de aplicação enquanto o alvo está visível.">i buffs</span>
+        </div>
+        <main class="players-wrap">
+            <div id="guilds-list" class="guilds-list"></div>
+        </main>
+    </section>
+
+    <footer class="status-bar">
+        <span id="status-text">Parado</span>
+    </footer>
+    <script src="class-colors.data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
