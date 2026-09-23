@@ -653,6 +653,7 @@ function buffIconPath(cat) {
         case 'poção':      return '../buff-icons/pocao.png';
         case 'pergaminho': return '../buff-icons/pergaminho.png';
         case 'comida':     return '../buff-icons/comida.png';
+        case 'pot cura':   return '../buff-icons/potcura.png';
         default:           return '../buff-icons/pocao.png';
     }
 }
