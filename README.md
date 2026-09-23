@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="assets/ws-engine.png" alt="WS-engine" width="280" />
-</p>
+
 
 <h1 align="center">WS-engine</h1>
 

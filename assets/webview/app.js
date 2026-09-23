@@ -382,23 +382,15 @@ function setAreaCount(msg) {
     if (oc) oc.style.display = other > 0 ? '' : 'none';
 }
 function setCaptureState(state) {
+    console.log('[setCaptureState] ' + state);
     var btnCap  = document.getElementById('btn-capture');
     var btnReset = document.getElementById('btn-reset');
     var indicator = document.getElementById('capture-indicator');
     var label = document.getElementById('capture-label');
 
-    // Reset button only makes sense while a capture is running.
-    if (btnReset) btnReset.disabled = (state === 'stopped');
+    if (btnReset) btnReset.disabled = false;
 
-    if (state === 'stopped') {
-        indicator.classList.remove('capturing');
-        indicator.classList.add('stopped');
-        label.textContent = 'parado';
-        btnCap.innerHTML = '&#9654;';
-        btnCap.classList.add('stopped');
-        btnCap.title = 'Iniciar captura';
-        btnCap.dataset.mode = 'start';
-    } else {
+    if (state === 'running') {
         indicator.classList.add('capturing');
         indicator.classList.remove('stopped');
         label.textContent = 'capturando';
@@ -406,6 +398,15 @@ function setCaptureState(state) {
         btnCap.classList.remove('stopped');
         btnCap.title = 'Parar captura — pets e classes podem ficar incompletos para quem entrar na área enquanto estiver parado.';
         btnCap.dataset.mode = 'stop';
+    } else {
+        // 'stopped' OR 'idle' — anything not actively capturing shows the play button.
+        indicator.classList.remove('capturing');
+        indicator.classList.add('stopped');
+        label.textContent = 'parado';
+        btnCap.innerHTML = '&#9654;';
+        btnCap.classList.add('stopped');
+        btnCap.title = 'Iniciar captura';
+        btnCap.dataset.mode = 'start';
     }
 }
 
@@ -450,12 +451,26 @@ function fallbackCopy(text) {
 }
 
 // ---------- Buttons ----------
-document.getElementById('btn-reset').addEventListener('click', function () { sendCmd('reset'); });
+// Buttons — semantics fixed 2026-09-23 per user request:
+//   btn-capture: single toggle start/stop (▶/■). Default mode = 'start'.
+//   btn-reset:   restart capture (kill dumpcap + fresh pcap). Enabled only
+//                while a capture is running.
+//   btn-copy:    copy leaderboard top to clipboard.
+document.getElementById('btn-reset').addEventListener('click', function () {
+    if (this.disabled) return;
+    sendCmd('reset');
+});
 document.getElementById('btn-copy').addEventListener('click', copyTopToClipboard);
 document.getElementById('btn-capture').addEventListener('click', function () {
-    var mode = this.dataset.mode || 'stop';
-    if (mode === 'stop') sendCmd('stop-capture');
-    else sendCmd('start-capture');
+    var mode = this.dataset.mode || 'start';
+    console.log('[btn-capture] click mode=' + mode);
+    if (mode === 'start') {
+        sendCmd('start-capture');
+        setCaptureState('running');
+    } else {
+        sendCmd('stop-capture');
+        setCaptureState('stopped');
+    }
 });
 
 // Toggle mobs row visibility. Persisted so the choice sticks across runs.

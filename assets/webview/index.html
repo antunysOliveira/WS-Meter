@@ -8,13 +8,13 @@
 <body>
     <header class="toolbar">
         <div class="btn-group">
-            <button id="btn-reset" title="Nova luta — zera os números da luta atual (mantém captura, nomes, classes e pet→dono)">&#8635;</button>
+            <button id="btn-capture" class="btn-capture stopped" data-mode="start" title="Iniciar captura">&#9654;</button>
+            <button id="btn-reset" title="Zerar contadores (dano/timer/leaderboard). Captura continua rodando.">&#8635;</button>
             <button id="btn-copy" title="Copiar top para área de transferência">&#128203;</button>
-            <button id="btn-capture" class="btn-capture" title="Parar captura">&#9724;</button>
         </div>
         <div class="bout">Luta: <span id="bout-timer">0:00</span></div>
-        <div id="capture-indicator" class="capture-indicator capturing" title="">
-            <span class="dot"></span><span id="capture-label">capturando</span>
+        <div id="capture-indicator" class="capture-indicator stopped" title="">
+            <span class="dot"></span><span id="capture-label">parado</span>
         </div>
         <div id="area-counter" class="area-counter" title="Entidades visíveis na sua área agora (ENTER=tag25 · LEAVE=tag13)">
             <span class="area-players"><span id="area-players-n">0</span> jog</span>
