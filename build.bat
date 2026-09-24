@@ -51,6 +51,7 @@ if not exist "%CSC%" (
     "%~dp0src\C2sCensus.cs" ^
     "%~dp0src\FindClassNearName.cs" ^
     "%~dp0src\ProtocolCensus.cs" ^
+    "%~dp0src\CommunitySync.cs" ^
     "%~dp0src\WS-engine.cs"
 if errorlevel 1 (
     echo Build failed.

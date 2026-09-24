@@ -76,6 +76,31 @@ Isso é cara de trojan pra AV, mesmo não sendo. Se o AV bloqueia:
 
 ---
 
+## 6. Community sync (opcional)
+
+O WS-engine tem um recurso opcional que compartilha o cache de nicks e
+classes entre todos os usuários rodando o programa. Todo mundo vê os
+jogadores que qualquer outro já cruzou.
+
+**Ligado por padrão.** Se quiser desligar:
+
+1. Fechar WS-engine.
+2. Abrir `ws-engine.config.json` (ao lado do exe).
+3. Setar `"community": { "enabled": false }`.
+4. Reabrir.
+
+**Reset de identidade** (regenera seu client_id anônimo):
+
+1. Fechar WS-engine.
+2. Apagar `ws-engine.client-id.txt`.
+3. Reabrir. Novo GUID é gerado.
+
+**Modelo de trust:** qualquer usuário com a URL + anon-key do backend pode escrever
+qualquer entrada. Adequado pra guildas fechadas onde todos são conhecidos. Se aparecer
+troll poluindo dados, ver `docs/community-sync-troubleshoot.md` pra procedimento de reset.
+
+---
+
 ## Problemas comuns
 
 ### "dumpcap.exe not found in the configured folder"

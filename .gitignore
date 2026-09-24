@@ -5,6 +5,8 @@ ws-engine.db-journal
 ws-engine.me.txt
 ws-engine.nicknames.json
 ws-engine.mem-*.json
+ws-engine.community-cache.json
+ws-engine.client-id.txt
 wsengine.log
 memscan-debug.jsonl
 class-cands.txt

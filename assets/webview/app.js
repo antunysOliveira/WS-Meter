@@ -394,7 +394,7 @@ function setCaptureState(state) {
         indicator.classList.add('capturing');
         indicator.classList.remove('stopped');
         label.textContent = 'capturando';
-        btnCap.innerHTML = '&#9724;';
+        btnCap.innerHTML = ICON_PAUSE;
         btnCap.classList.remove('stopped');
         btnCap.title = 'Parar captura — pets e classes podem ficar incompletos para quem entrar na área enquanto estiver parado.';
         btnCap.dataset.mode = 'stop';
@@ -403,12 +403,17 @@ function setCaptureState(state) {
         indicator.classList.remove('capturing');
         indicator.classList.add('stopped');
         label.textContent = 'parado';
-        btnCap.innerHTML = '&#9654;';
+        btnCap.innerHTML = ICON_START;
         btnCap.classList.add('stopped');
         btnCap.title = 'Iniciar captura';
         btnCap.dataset.mode = 'start';
     }
 }
+
+// Icon SVGs used by btn-capture toggle. Keep inline (no HTTP round-trip;
+// fill=currentColor lets CSS control theming).
+var ICON_START = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.494,7.968l-9.54-7A5,5,0,0,0,3,5V19a5,5,0,0,0,7.957,4.031l9.54-7a5,5,0,0,0,0-8.064Zm-1.184,6.45-9.54,7A3,3,0,0,1,5,19V5A2.948,2.948,0,0,1,6.641,2.328,3.018,3.018,0,0,1,8.006,2a2.97,2.97,0,0,1,1.764.589l9.54,7a3,3,0,0,1,0,4.836Z"/></svg>';
+var ICON_PAUSE = '<img src="icons/pause.png" alt="pause" aria-hidden="true" />';
 
 // ---------- Clipboard ----------
 function fmtDmgShort(n) {

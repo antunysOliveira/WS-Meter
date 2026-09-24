@@ -55,6 +55,29 @@ body {
 .btn-capture { color: #dc5a5a; }
 .btn-capture.stopped { color: #7ad28c; }
 
+/* SVG icon buttons — use currentColor via fill so button color drives icon color. */
+.btn-svg {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    min-width: 36px;
+    height: 32px;
+    line-height: 1;
+}
+.btn-svg svg,
+.btn-svg img {
+    width: 16px;
+    height: 16px;
+    display: block;
+    fill: currentColor;
+    pointer-events: none;
+}
+.btn-svg svg path { fill: currentColor; }
+#btn-reset.btn-svg { color: #dc5a5a; }
+#btn-copy.btn-svg { color: #c0c3cb; }
+#btn-copy.btn-svg:hover { color: #7ad28c; }
+
 .capture-indicator {
     display: inline-flex;
     align-items: center;

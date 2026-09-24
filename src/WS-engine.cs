@@ -331,6 +331,185 @@ namespace WSEngine
                     return Replay.Assert(args[i + 1], expected, tol);
                 }
             }
+            if (args.Length > 0 && args[0] == "--community-status")
+            {
+                // NB: AttachConsole(-1) is used by other CLI modes but does not make stdout
+                // capturable via ProcessStartInfo.RedirectStandardOutput. OpenStandardOutput
+                // wraps the actual pipe handle so automated tests
+                // (tools/_test-community-sync.ps1) can capture output.
+                var sw = new System.IO.StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
+                Console.SetOut(sw);
+                string root = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
+                // Ler config real igual boot
+                string communityUrl = "", communityKey = "";
+                bool communityEnabled = true;
+                try
+                {
+                    string cfgPath = Path.Combine(root, "ws-engine.config.json");
+                    if (File.Exists(cfgPath))
+                    {
+                        string body = File.ReadAllText(cfgPath);
+                        var mUrl = System.Text.RegularExpressions.Regex.Match(body,
+                            "\"community\"\\s*:\\s*\\{[^}]*\"url\"\\s*:\\s*\"([^\"]*)\"");
+                        if (mUrl.Success) communityUrl = mUrl.Groups[1].Value;
+                        var mKey = System.Text.RegularExpressions.Regex.Match(body,
+                            "\"community\"\\s*:\\s*\\{[^}]*\"anonKey\"\\s*:\\s*\"([^\"]*)\"");
+                        if (mKey.Success) communityKey = mKey.Groups[1].Value;
+                        var mEn = System.Text.RegularExpressions.Regex.Match(body,
+                            "\"community\"\\s*:\\s*\\{[^}]*\"enabled\"\\s*:\\s*(true|false)");
+                        if (mEn.Success) communityEnabled = (mEn.Groups[1].Value == "true");
+                    }
+                }
+                catch { }
+
+                // C1: force-disable before Init when sentinel is still present
+                if (communityUrl.IndexOf("REPLACE_ME", StringComparison.OrdinalIgnoreCase) >= 0
+                    || communityKey.IndexOf("REPLACE_ME", StringComparison.OrdinalIgnoreCase) >= 0)
+                    communityEnabled = false;
+
+                CommunitySync.Init(root, communityUrl, communityKey, communityEnabled, "cli-status");
+                Console.WriteLine("client_id: " + CommunitySync.ClientIdForDiag);
+                Console.WriteLine("enabled: " + CommunitySync.Enabled);
+                Console.WriteLine("backend: " + CommunitySync.BackendUrl);
+                Console.WriteLine("cache: " + CommunitySync.CachedCount + " entries");
+                Console.WriteLine("last_pull_utc: " + (CommunitySync.LastPullAtUtc == DateTime.MinValue ? "never" : CommunitySync.LastPullAtUtc.ToString("o")));
+
+                // Probe conectividade
+                if (CommunitySync.Enabled)
+                {
+                    int pulled = CommunitySync.PullOnce();
+                    Console.WriteLine("probe_pull: " + pulled + " entries");
+                }
+                CommunitySync.Stop();
+                return 0;
+            }
+            if (args.Length >= 2 && args[0] == "--community-probe")
+            {
+                var sw = new System.IO.StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
+                Console.SetOut(sw);
+                uint id;
+                if (!uint.TryParse(args[1], out id)) { Console.Error.WriteLine("bad id"); return 2; }
+                string root = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                CommunitySync.Init(root, "", "", false, "cli-probe");
+                CommunitySync.RemoteEntry e;
+                if (CommunitySync.TryLookup(id, out e)) Console.WriteLine("found: nick=" + e.Nick + " class=" + e.ClassId);
+                else Console.WriteLine("not found");
+                return 0;
+            }
+            if (args.Length >= 2 && args[0] == "--community-http-probe")
+            {
+                var sw = new System.IO.StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
+                Console.SetOut(sw);
+                string root = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                CommunitySync.Init(root, args[1], "dummy-key", true, "cli-probe");
+                var r = CommunitySync.HttpGetJson("");   // GET direto na URL passada
+                Console.WriteLine("Status=" + r.Status + " Err=" + (r.Error ?? "none"));
+                return 0;
+            }
+            if (args.Length > 0 && args[0] == "--community-unit-delta")
+            {
+                var sw = new System.IO.StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
+                Console.SetOut(sw);
+
+                // Nova arquitetura: delta vs backend snapshot (RemoteEntry), não vs LocalSnapshot
+                var current = new Dictionary<uint, CommunitySync.LocalSnapshotEntry>();
+                var remote = new Dictionary<uint, CommunitySync.RemoteEntry>();
+
+                // 1. vazio → vazio
+                var d = CommunitySync.ComputeDeltaVsRemote(current, remote, "cli");
+                if (d.Count != 0) { Console.Error.WriteLine("FAIL: empty→empty"); return 1; }
+
+                // 2. entity nova no local (não existe no backend) → push completo
+                current[0x0069u] = new CommunitySync.LocalSnapshotEntry { Nick = "A", ClassId = 1 };
+                d = CommunitySync.ComputeDeltaVsRemote(current, remote, "cli");
+                if (d.Count != 1 || d[0].Nick != "A" || d[0].ClassId != 1) { Console.Error.WriteLine("FAIL: new entry"); return 1; }
+
+                // 3. backend igual local → skip
+                remote[0x0069u] = new CommunitySync.RemoteEntry { EntityId = 0x0069u, Nick = "A", ClassId = 1 };
+                d = CommunitySync.ComputeDeltaVsRemote(current, remote, "cli");
+                if (d.Count != 0) { Console.Error.WriteLine("FAIL: no-diff should skip"); return 1; }
+
+                // 4. local tem class > 0, backend tem class 0 → push (upgrade)
+                remote[0x0069u].ClassId = 0;
+                d = CommunitySync.ComputeDeltaVsRemote(current, remote, "cli");
+                if (d.Count != 1 || d[0].ClassId != 1) { Console.Error.WriteLine("FAIL: class upgrade"); return 1; }
+
+                // 5. local sem class, backend com class → SKIP (backend tem mais info)
+                current[0x0069u].ClassId = 0;
+                remote[0x0069u].ClassId = 5;
+                d = CommunitySync.ComputeDeltaVsRemote(current, remote, "cli");
+                if (d.Count != 0) { Console.Error.WriteLine("FAIL: local-null vs backend-real should skip"); return 1; }
+
+                // 6. nick > 10 chars → filtrado (Warspear limit)
+                current.Clear(); remote.Clear();
+                current[0x0070u] = new CommunitySync.LocalSnapshotEntry { Nick = "TooLongNick", ClassId = 3 };
+                d = CommunitySync.ComputeDeltaVsRemote(current, remote, "cli");
+                if (d.Count != 0) { Console.Error.WriteLine("FAIL: nick>10 should be filtered"); return 1; }
+
+                // 7. Serialize sanity
+                current[0x0071u] = new CommunitySync.LocalSnapshotEntry { Nick = "B", ClassId = 2 };
+                d = CommunitySync.ComputeDeltaVsRemote(current, remote, "cli");
+                string j = CommunitySync.SerializeBatch(d);
+                if (!j.Contains("\"entity_id\":113") || !j.Contains("\"nick\":\"B\"")) {
+                    Console.Error.WriteLine("FAIL: serialize: " + j); return 1;
+                }
+
+                Console.WriteLine("PASS: unit-delta");
+                return 0;
+            }
+            if (args.Length > 0 && args[0] == "--community-unit-loadmem")
+            {
+                var sw = new System.IO.StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
+                Console.SetOut(sw);
+                string root = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                string p1 = Path.Combine(root, "ws-engine.mem-players.json");
+                string p2 = Path.Combine(root, "ws-engine.mem-player-classes.json");
+                string bak1 = File.Exists(p1) ? File.ReadAllText(p1) : null;
+                string bak2 = File.Exists(p2) ? File.ReadAllText(p2) : null;
+                try
+                {
+                    File.WriteAllText(p1, "{\"0x00692DA2\": \"Centablg\", \"0x006D8A08\": \"Ncro\"}");
+                    File.WriteAllText(p2, "{\"0x00692DA2\": 10, \"0x006D8A08\": 5}");
+                    var snap = CommunitySync.LoadLocalSnapshotFromMemJsons(root);
+                    if (snap.Count != 2) { Console.Error.WriteLine("FAIL: expected 2 entries, got " + snap.Count); return 1; }
+                    if (snap[0x00692DA2u].Nick != "Centablg" || snap[0x00692DA2u].ClassId != 10) {
+                        Console.Error.WriteLine("FAIL: Centablg wrong"); return 1;
+                    }
+                    Console.WriteLine("PASS: unit-loadmem");
+                    return 0;
+                }
+                finally
+                {
+                    if (bak1 != null) File.WriteAllText(p1, bak1); else if (File.Exists(p1)) File.Delete(p1);
+                    if (bak2 != null) File.WriteAllText(p2, bak2); else if (File.Exists(p2)) File.Delete(p2);
+                }
+            }
+            if (args.Length >= 3 && args[0] == "--community-pull-once")
+            {
+                var sw = new System.IO.StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
+                Console.SetOut(sw);
+                string root = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                CommunitySync.Init(root, args[1], args[2], true, "cli-pull-once");
+                int n = CommunitySync.PullOnce();
+                Console.WriteLine("pulled=" + n);
+                Environment.Exit(0);
+                return 0;
+            }
+            if (args.Length >= 3 && args[0] == "--community-hb-once")
+            {
+                var sw = new System.IO.StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
+                Console.SetOut(sw);
+                string root = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                // Força client_id conhecido pro teste
+                File.WriteAllText(Path.Combine(root, "ws-engine.client-id.txt"), "hb-test-client");
+                try { File.Delete(Path.Combine(root, "ws-engine.me.txt")); } catch { }
+                CommunitySync.Init(root, args[1], args[2], true, "cli-hb");
+                CommunitySync.HeartbeatOnce();
+                Environment.Exit(0);
+                return 0;
+            }
+
             // GUI mode needs admin (dumpcap live-capture + ReadProcessMemory of the
             // game). Manifest is asInvoker so CLI modes (--replay, --probe-ids, etc.)
             // run without UAC; self-elevate here for the interactive path.
@@ -586,6 +765,49 @@ namespace WSEngine
                 catch { }
             };
             memReload.Start();
+
+            // ── Community sync: parse ws-engine.config.json community block, init + seed ──
+            string communityUrl = "";
+            string communityKey = "";
+            bool communityEnabled = true;
+            try
+            {
+                if (File.Exists(configPath))
+                {
+                    string body = File.ReadAllText(configPath);
+                    var mUrl = System.Text.RegularExpressions.Regex.Match(body,
+                        "\"community\"\\s*:\\s*\\{[^}]*\"url\"\\s*:\\s*\"([^\"]*)\"");
+                    if (mUrl.Success) communityUrl = mUrl.Groups[1].Value;
+                    var mKey = System.Text.RegularExpressions.Regex.Match(body,
+                        "\"community\"\\s*:\\s*\\{[^}]*\"anonKey\"\\s*:\\s*\"([^\"]*)\"");
+                    if (mKey.Success) communityKey = mKey.Groups[1].Value;
+                    var mEn = System.Text.RegularExpressions.Regex.Match(body,
+                        "\"community\"\\s*:\\s*\\{[^}]*\"enabled\"\\s*:\\s*(true|false)");
+                    if (mEn.Success) communityEnabled = (mEn.Groups[1].Value == "true");
+                }
+            }
+            catch { }
+            if (string.IsNullOrEmpty(communityUrl)) communityUrl = "https://REPLACE_ME.supabase.co/rest/v1";
+            if (string.IsNullOrEmpty(communityKey)) communityKey = "REPLACE_ME_ANON_KEY";
+            // C1: force-disable before Init when sentinel is still present
+            if (communityUrl.IndexOf("REPLACE_ME", StringComparison.OrdinalIgnoreCase) >= 0
+                || communityKey.IndexOf("REPLACE_ME", StringComparison.OrdinalIgnoreCase) >= 0)
+                communityEnabled = false;
+            string ver = "unknown";
+            try { ver = System.Diagnostics.FileVersionInfo.GetVersionInfo(
+                System.Reflection.Assembly.GetExecutingAssembly().Location).FileVersion ?? "unknown"; }
+            catch { }
+            // C2: wire delegate so each PullOnce result propagates to live caches
+            var _autoNameCacheRef = autoNameCache;
+            var _playerClassIdRef = playerClassId;
+            CommunitySync.OnPullMerged = () => {
+                if (InvokeRequired) { BeginInvoke((Action)(() => CommunitySync.SeedFromCache(_autoNameCacheRef, _playerClassIdRef))); }
+                else CommunitySync.SeedFromCache(_autoNameCacheRef, _playerClassIdRef);
+            };
+            CommunitySync.Init(root, communityUrl, communityKey, communityEnabled, ver);
+            CommunitySync.SeedFromCache(autoNameCache, playerClassId);
+            // ──────────────────────────────────────────────────────────────────────────────
+
             SetStatus("Parado", Theme.Muted);
 
             // Continuous-capture: track Warspear.exe lifecycle. Start capture when
@@ -2455,7 +2677,35 @@ namespace WSEngine
         {
             string ws = (wsDir ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"");
             string iface = (LoadInterfacePref() ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"");
-            File.WriteAllText(configPath, "{\"wiresharkDir\":\"" + ws + "\",\"interfaceName\":\"" + iface + "\"}");
+            File.WriteAllText(configPath, "{\"wiresharkDir\":\"" + ws + "\",\"interfaceName\":\"" + iface + "\"" + PreserveCommunityBlock() + "}");
+        }
+
+        // Extract the raw ",\"community\":{...}" substring from the current config
+        // so SaveConfig/SaveInterfacePref don't nuke user-configured Supabase creds.
+        // Returns empty string if config missing or has no community block.
+        string PreserveCommunityBlock()
+        {
+            try
+            {
+                if (!File.Exists(configPath)) return "";
+                string raw = File.ReadAllText(configPath);
+                int idx = raw.IndexOf("\"community\"");
+                if (idx < 0) return "";
+                int braceStart = raw.IndexOf('{', idx);
+                if (braceStart < 0) return "";
+                int depth = 1;
+                for (int i = braceStart + 1; i < raw.Length; i++)
+                {
+                    if (raw[i] == '{') depth++;
+                    else if (raw[i] == '}')
+                    {
+                        depth--;
+                        if (depth == 0) return "," + raw.Substring(idx, i - idx + 1);
+                    }
+                }
+            }
+            catch { }
+            return "";
         }
 
         string LoadInterfacePref()
@@ -2475,7 +2725,7 @@ namespace WSEngine
         {
             string ws = (txtWs.Text ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"");
             string iface = (ifName ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"");
-            File.WriteAllText(configPath, "{\"wiresharkDir\":\"" + ws + "\",\"interfaceName\":\"" + iface + "\"}");
+            File.WriteAllText(configPath, "{\"wiresharkDir\":\"" + ws + "\",\"interfaceName\":\"" + iface + "\"" + PreserveCommunityBlock() + "}");
         }
 
         void AutoDetectInterface()
@@ -2955,6 +3205,7 @@ namespace WSEngine
 
         void OnClosing(object sender, FormClosingEventArgs e)
         {
+            try { CommunitySync.Stop(); } catch { }
             // Stop ProcessMonitor first so its OnGameStopped doesn't race with shutdown.
             if (_pm != null) { try { _pm.Stop(); _pm.Dispose(); } catch { } _pm = null; }
             // Always stop the capture cleanly on exit — no confirmation dialog.
