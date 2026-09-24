@@ -45,7 +45,12 @@ namespace WSEngine
             double tsResol = 1e-9; // pcapng default is often 1e-6 (usec) or 1e-9 (nsec); we detect from IDB
             byte lastIfTsResol = 6; // default 10^-6
 
-            int nEpb = 0, nTcp = 0, nIpv4 = 0;
+            int nEpb = 0, nTcp = 0, nIpv4 = 0, nIpv6 = 0;
+            // Server IP normalization: IPv6 comparisons must be case- and format-insensitive
+            // (e.g. "2a02:6EA0:D01C::3" vs "2a02:6ea0:d01c::3"). Normalize once up-front and
+            // compare on the canonical form.
+            string serverIpNorm = NormalizeIp(serverIp);
+            bool serverIsV6 = serverIpNorm != null && serverIpNorm.IndexOf(':') >= 0;
 
             while (pos + 12 <= all.Length)
             {
@@ -99,7 +104,7 @@ namespace WSEngine
                     {
                         // Ethernet: dst(6) + src(6) + etherType(2)
                         ushort etherType = (ushort)((all[dataStart + 12] << 8) | all[dataStart + 13]);
-                        if (etherType == 0x0800 && capLn >= 34) // IPv4
+                        if (!serverIsV6 && etherType == 0x0800 && capLn >= 34) // IPv4
                         {
                             nIpv4++;
                             int ipStart = dataStart + 14;
@@ -120,8 +125,8 @@ namespace WSEngine
                                     int payloadLen = ipTotalLen - ipHdrLen - tcpHdrLen;
                                     uint seq = (uint)((all[tcpStart + 4] << 24) | (all[tcpStart + 5] << 16) | (all[tcpStart + 6] << 8) | all[tcpStart + 7]);
                                     byte flags = all[tcpStart + 13];
-                                    bool srcIsServer = srcIp == serverIp;
-                                    bool dstIsServer = dstIp == serverIp;
+                                    bool srcIsServer = srcIp == serverIpNorm;
+                                    bool dstIsServer = dstIp == serverIpNorm;
                                     if (srcIsServer || dstIsServer)
                                     {
                                         // Emit if the segment carries payload OR it is a SYN — SYN packets have no
@@ -165,13 +170,116 @@ namespace WSEngine
                                 }
                             }
                         }
+                        else if (serverIsV6 && etherType == 0x86dd && capLn >= 54) // IPv6
+                        {
+                            nIpv6++;
+                            int ipStart = dataStart + 14;
+                            // IPv6 fixed header: 40 bytes. next-header @+6, payload-len @+4 (u16 BE),
+                            // src @+8 (16B), dst @+24 (16B). Extension headers not handled — game
+                            // TCP stream has none in practice.
+                            byte nextHdr = all[ipStart + 6];
+                            int ipPayloadLen = (all[ipStart + 4] << 8) | all[ipStart + 5];
+                            string srcIp = FormatIpv6(all, ipStart + 8);
+                            string dstIp = FormatIpv6(all, ipStart + 24);
+                            if (nextHdr == 6 && ipStart + 40 + 20 <= dataStart + capLn)
+                            {
+                                int tcpStart = ipStart + 40;
+                                byte tcpOff = (byte)((all[tcpStart + 12] >> 4) & 0x0F);
+                                int tcpHdrLen = tcpOff * 4;
+                                int payloadLen = ipPayloadLen - tcpHdrLen;
+                                uint seq = (uint)((all[tcpStart + 4] << 24) | (all[tcpStart + 5] << 16) | (all[tcpStart + 6] << 8) | all[tcpStart + 7]);
+                                byte flags = all[tcpStart + 13];
+                                bool srcIsServer = srcIp == serverIpNorm;
+                                bool dstIsServer = dstIp == serverIpNorm;
+                                if (srcIsServer || dstIsServer)
+                                {
+                                    bool hasSyn = (flags & 0x02) != 0;
+                                    if (payloadLen > 0)
+                                    {
+                                        int payloadStart = tcpStart + tcpHdrLen;
+                                        if (payloadStart + payloadLen <= dataStart + capLn)
+                                        {
+                                            nTcp++;
+                                            byte[] payload = new byte[payloadLen];
+                                            Array.Copy(all, payloadStart, payload, 0, payloadLen);
+                                            ulong ts = ((ulong)tsHi << 32) | tsLo;
+                                            double timeSec = ts * tsResol;
+                                            segs.Add(new TcpSegment
+                                            {
+                                                Time = timeSec,
+                                                ClientToServer = !srcIsServer,
+                                                Payload = payload,
+                                                Seq = seq,
+                                                Flags = flags
+                                            });
+                                        }
+                                    }
+                                    else if (hasSyn)
+                                    {
+                                        ulong ts = ((ulong)tsHi << 32) | tsLo;
+                                        double timeSec = ts * tsResol;
+                                        segs.Add(new TcpSegment
+                                        {
+                                            Time = timeSec,
+                                            ClientToServer = !srcIsServer,
+                                            Payload = new byte[0],
+                                            Seq = seq,
+                                            Flags = flags
+                                        });
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 pos += (int)blockLen;
             }
-            sb.AppendFormat("EPB={0}, IPv4={1}, TCP-with-payload-matching-server={2}, tsResol=1e-{3}", nEpb, nIpv4, nTcp, Math.Log10(1.0 / tsResol));
+            sb.AppendFormat("EPB={0}, IPv4={1}, IPv6={2}, TCP-with-payload-matching-server={3}, tsResol=1e-{4}", nEpb, nIpv4, nIpv6, nTcp, Math.Log10(1.0 / tsResol));
             diag = sb.ToString();
             return segs;
+        }
+
+        // Format 16-byte IPv6 address in canonical compressed form (RFC 5952):
+        // lowercase hex, longest zero-run collapsed to "::", leading zeros stripped.
+        // Matches System.Net.IPAddress.ToString() output so ServerDiscovery values
+        // (produced via IPAddress) round-trip through packet-header parsing.
+        internal static string FormatIpv6(byte[] buf, int off)
+        {
+            ushort[] g = new ushort[8];
+            for (int i = 0; i < 8; i++) g[i] = (ushort)((buf[off + i * 2] << 8) | buf[off + i * 2 + 1]);
+            // Find longest run of zeros (min length 2 for :: shorthand).
+            int bestStart = -1, bestLen = 0, curStart = -1, curLen = 0;
+            for (int i = 0; i < 8; i++)
+            {
+                if (g[i] == 0) { if (curStart < 0) curStart = i; curLen++; }
+                else
+                {
+                    if (curLen > bestLen && curLen >= 2) { bestStart = curStart; bestLen = curLen; }
+                    curStart = -1; curLen = 0;
+                }
+            }
+            if (curLen > bestLen && curLen >= 2) { bestStart = curStart; bestLen = curLen; }
+
+            var sb = new StringBuilder(40);
+            for (int i = 0; i < 8; )
+            {
+                if (i == bestStart) { sb.Append(i == 0 ? "::" : ":"); i += bestLen; if (i >= 8) break; continue; }
+                if (i > 0) sb.Append(':');
+                sb.Append(g[i].ToString("x"));
+                i++;
+            }
+            return sb.ToString();
+        }
+
+        // Normalize a user-supplied IP string (dotted-quad or IPv6) into the same
+        // canonical form the packet-header parser emits. Returns the input verbatim
+        // when it can't be parsed (defensive — a bad server IP just filters nothing).
+        internal static string NormalizeIp(string ip)
+        {
+            if (string.IsNullOrEmpty(ip)) return ip;
+            System.Net.IPAddress addr;
+            if (System.Net.IPAddress.TryParse(ip, out addr)) return addr.ToString();
+            return ip;
         }
     }
 

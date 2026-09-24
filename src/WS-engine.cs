@@ -1023,7 +1023,7 @@ namespace WSEngine
             host.Controls.Add(hidden);
             txtWs = new TextBox(); hidden.Controls.Add(txtWs);
             cmbIf = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList }; hidden.Controls.Add(cmbIf);
-            txtFilter = new TextBox { Text = "host " + ServerIp }; hidden.Controls.Add(txtFilter);
+            txtFilter = new TextBox { Text = "host " + _activeServerIp }; hidden.Controls.Add(txtFilter);
             txtLog = new TextBox { Multiline = true }; hidden.Controls.Add(txtLog);
             lstCaps = new ListView(); hidden.Controls.Add(lstCaps);
             btnBrowse = new Button(); hidden.Controls.Add(btnBrowse);
@@ -1079,7 +1079,7 @@ namespace WSEngine
             try
             {
                 string diag;
-                var segs = PcapngReader.ReadTcp(path, ServerIp, out diag);
+                var segs = PcapngReader.ReadTcp(path, _activeServerIp, out diag);
                 if (segs.Count == 0)
                 {
                     if (_webHost != null && _webHost.IsReady)

@@ -58,7 +58,24 @@ namespace WSEngine
             public uint owningPid;
         }
 
+        // IPv6 variant. Layout: MIB_TCP6ROW_OWNER_PID from iphlpapi.h.
+        [StructLayout(LayoutKind.Sequential)]
+        struct MIB_TCP6ROW_OWNER_PID
+        {
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+            public byte[] localAddr;
+            public uint localScopeId;
+            public uint localPort;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+            public byte[] remoteAddr;
+            public uint remoteScopeId;
+            public uint remotePort;
+            public uint state;
+            public uint owningPid;
+        }
+
         const int AF_INET = 2;
+        const int AF_INET6 = 23;
         const uint MIB_TCP_STATE_ESTAB = 5;
 
         // ---------- State ----------
@@ -199,38 +216,78 @@ namespace WSEngine
         {
             ip = ""; port = 0;
 
-            var rows = ReadTable();
-            if (rows == null) { LastDiag = "GetExtendedTcpTable failed"; return false; }
+            // Enumerate IPv4 AND IPv6 tables. Post-patch (2026-09-24) Warspear
+            // opens the game socket over IPv6 [2a02:6ea0:d01c::3]:15103 — IPv4
+            // enumeration alone returns 0 candidates and dumpcap ends up with
+            // a filter that never matches. Both families are treated as one
+            // candidate pool; lowest remote port wins across both.
+            var rows4 = ReadTable();
+            var rows6 = ReadTable6();
 
-            var candidates = new List<KeyValuePair<uint, int>>();
+            // Candidate item: ip-string + port. Kept as string so v4/v6 mix cleanly.
+            var candidates = new List<KeyValuePair<string, int>>();
             var rejected = new List<string>();
-            foreach (var r in rows)
-            {
-                if (r.owningPid != (uint)pid) continue;
-                if (r.state != MIB_TCP_STATE_ESTAB) continue;
-                int rport = NetworkPortToInt(r.remotePort);
-                if (rport <= 0) continue;
-                byte b0 = (byte)(r.remoteAddr & 0xFF);
-                if (b0 == 127) { rejected.Add(AddrToString(r.remoteAddr) + ":" + rport + " (loopback)"); continue; }
-                bool ignored = false;
-                for (int k = 0; k < IgnoredRemotePorts.Length; k++) if (IgnoredRemotePorts[k] == rport) { ignored = true; break; }
-                if (ignored) { rejected.Add(AddrToString(r.remoteAddr) + ":" + rport + " (web/mail port)"); continue; }
-                candidates.Add(new KeyValuePair<uint, int>(r.remoteAddr, rport));
-            }
 
-            if (candidates.Count == 0)
+            if (rows4 != null)
             {
-                // Fallback: no non-web candidate — accept any non-loopback so
-                // we don't stay silent forever. Better a wrong guess than nothing.
-                foreach (var r in rows)
+                foreach (var r in rows4)
                 {
                     if (r.owningPid != (uint)pid) continue;
                     if (r.state != MIB_TCP_STATE_ESTAB) continue;
                     int rport = NetworkPortToInt(r.remotePort);
                     if (rport <= 0) continue;
                     byte b0 = (byte)(r.remoteAddr & 0xFF);
-                    if (b0 == 127) continue;
-                    candidates.Add(new KeyValuePair<uint, int>(r.remoteAddr, rport));
+                    string ipStr = AddrToString(r.remoteAddr);
+                    if (b0 == 127) { rejected.Add(ipStr + ":" + rport + " (loopback)"); continue; }
+                    if (IsIgnoredPort(rport)) { rejected.Add(ipStr + ":" + rport + " (web/mail port)"); continue; }
+                    candidates.Add(new KeyValuePair<string, int>(ipStr, rport));
+                }
+            }
+
+            if (rows6 != null)
+            {
+                foreach (var r in rows6)
+                {
+                    if (r.owningPid != (uint)pid) continue;
+                    if (r.state != MIB_TCP_STATE_ESTAB) continue;
+                    int rport = NetworkPortToInt(r.remotePort);
+                    if (rport <= 0) continue;
+                    if (IsLoopback6(r.remoteAddr)) { rejected.Add(Addr6ToString(r.remoteAddr) + ":" + rport + " (loopback)"); continue; }
+                    string ipStr = Addr6ToString(r.remoteAddr);
+                    if (IsIgnoredPort(rport)) { rejected.Add(ipStr + ":" + rport + " (web/mail port)"); continue; }
+                    candidates.Add(new KeyValuePair<string, int>(ipStr, rport));
+                }
+            }
+
+            if (candidates.Count == 0)
+            {
+                // Fallback: accept any non-loopback (v4 or v6) so we don't stay
+                // silent forever if only web ports are open. Better a wrong guess
+                // than nothing.
+                if (rows4 != null)
+                {
+                    foreach (var r in rows4)
+                    {
+                        if (r.owningPid != (uint)pid) continue;
+                        if (r.state != MIB_TCP_STATE_ESTAB) continue;
+                        int rport = NetworkPortToInt(r.remotePort);
+                        if (rport <= 0) continue;
+                        byte b0 = (byte)(r.remoteAddr & 0xFF);
+                        if (b0 == 127) continue;
+                        candidates.Add(new KeyValuePair<string, int>(AddrToString(r.remoteAddr), rport));
+                    }
+                }
+                if (rows6 != null)
+                {
+                    foreach (var r in rows6)
+                    {
+                        if (r.owningPid != (uint)pid) continue;
+                        if (r.state != MIB_TCP_STATE_ESTAB) continue;
+                        int rport = NetworkPortToInt(r.remotePort);
+                        if (rport <= 0) continue;
+                        if (IsLoopback6(r.remoteAddr)) continue;
+                        candidates.Add(new KeyValuePair<string, int>(Addr6ToString(r.remoteAddr), rport));
+                    }
                 }
                 if (candidates.Count == 0)
                 {
@@ -244,16 +301,38 @@ namespace WSEngine
             {
                 if (candidates[i].Value < candidates[bestIdx].Value) bestIdx = i;
             }
-            ip = AddrToString(candidates[bestIdx].Key);
+            ip = candidates[bestIdx].Key;
             port = candidates[bestIdx].Value;
 
             var alt = new List<string>();
             for (int i = 0; i < candidates.Count; i++)
-                if (i != bestIdx) alt.Add(AddrToString(candidates[i].Key) + ":" + candidates[i].Value);
+                if (i != bestIdx) alt.Add(candidates[i].Key + ":" + candidates[i].Value);
             LastDiag = "picked " + ip + ":" + port
                 + (alt.Count > 0 ? "; alts=" + string.Join(",", alt.ToArray()) : "")
                 + (rejected.Count > 0 ? "; rejected=" + string.Join(",", rejected.ToArray()) : "");
             return true;
+        }
+
+        static bool IsIgnoredPort(int p)
+        {
+            for (int k = 0; k < IgnoredRemotePorts.Length; k++) if (IgnoredRemotePorts[k] == p) return true;
+            return false;
+        }
+
+        static bool IsLoopback6(byte[] addr)
+        {
+            if (addr == null || addr.Length != 16) return false;
+            for (int i = 0; i < 15; i++) if (addr[i] != 0) return false;
+            return addr[15] == 1;
+        }
+
+        static string Addr6ToString(byte[] addr)
+        {
+            if (addr == null || addr.Length != 16) return "";
+            // Delegate to System.Net.IPAddress — its ToString() emits canonical
+            // RFC 5952 form. PcapngReader.FormatIpv6 matches the same format so
+            // packet-header comparisons succeed.
+            return new System.Net.IPAddress(addr).ToString();
         }
 
         static int NetworkPortToInt(uint netPort)
@@ -272,6 +351,36 @@ namespace WSEngine
             byte c = (byte)((addr >> 16) & 0xFF);
             byte d = (byte)((addr >> 24) & 0xFF);
             return a + "." + b + "." + c + "." + d;
+        }
+
+        static List<MIB_TCP6ROW_OWNER_PID> ReadTable6()
+        {
+            int size = 0;
+            uint err = GetExtendedTcpTable(IntPtr.Zero, ref size, false, AF_INET6,
+                TCP_TABLE_CLASS.TCP_TABLE_OWNER_PID_CONNECTIONS, 0);
+            if (size <= 0) return null;
+
+            IntPtr buf = Marshal.AllocHGlobal(size);
+            try
+            {
+                err = GetExtendedTcpTable(buf, ref size, false, AF_INET6,
+                    TCP_TABLE_CLASS.TCP_TABLE_OWNER_PID_CONNECTIONS, 0);
+                if (err != 0) return null;
+
+                int nrows = Marshal.ReadInt32(buf);
+                var rows = new List<MIB_TCP6ROW_OWNER_PID>(nrows);
+                int rowSize = Marshal.SizeOf(typeof(MIB_TCP6ROW_OWNER_PID));
+                IntPtr p = IntPtr.Add(buf, 4);
+                for (int i = 0; i < nrows; i++)
+                {
+                    var r = (MIB_TCP6ROW_OWNER_PID)Marshal.PtrToStructure(p, typeof(MIB_TCP6ROW_OWNER_PID));
+                    rows.Add(r);
+                    p = IntPtr.Add(p, rowSize);
+                }
+                return rows;
+            }
+            catch { return null; }
+            finally { Marshal.FreeHGlobal(buf); }
         }
 
         static List<MIB_TCPROW_OWNER_PID> ReadTable()
