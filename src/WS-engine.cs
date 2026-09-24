@@ -623,7 +623,8 @@ namespace WSEngine
         readonly string root;
         readonly string capturesDir;
         readonly string configPath;
-        const string ServerIp = "152.233.19.169";
+        const string ServerIp = "152.233.19.169";   // fallback default; runtime IP vive em _activeServerIp
+        string _activeServerIp = "152.233.19.169";
 
         Process proc;
         string pcapPath;
@@ -863,6 +864,16 @@ namespace WSEngine
 
             SetStatus("Parado", Theme.Muted);
 
+            // Server IP discovery — descobre IP:port do server dinamicamente
+            // via GetExtendedTcpTable (filtrado pelo PID do Warspear). Substitui
+            // hardcoded 152.233.19.169 que quebra a cada patch/rebalance do server.
+            ServerDiscovery.Start();
+            ServerDiscovery.OnEndpointChanged += (ip, port) =>
+            {
+                if (InvokeRequired) { BeginInvoke((Action)(() => OnServerEndpointChanged(ip, port))); return; }
+                OnServerEndpointChanged(ip, port);
+            };
+
             // Continuous-capture: track Warspear.exe lifecycle. Start capture when
             // game opens, stop when it closes. UI Play button becomes "new bout".
             _pm = new ProcessMonitor("Warspear", 2000);
@@ -870,7 +881,12 @@ namespace WSEngine
             _pm.OnGameStopped += OnGameStopped;
             _pm.OnGameStarted += (int pid) => EnsureMemscanRunning();
             _pm.OnGameStopped += (int oldPid) => StopMemscan();
+            _pm.OnGameStarted += (int pid) => ServerDiscovery.SetPid(pid);
+            _pm.OnGameStopped += (int oldPid) => ServerDiscovery.SetPid(-1);
             _pm.Start();
+            // Se jogo já estava aberto no boot, ProcessMonitor não emite OnGameStarted —
+            // seed ServerDiscovery manualmente pra iniciar polling
+            if (_pm.IsRunning && _pm.Pid > 0) ServerDiscovery.SetPid(_pm.Pid);
             if (_pm.IsRunning)
             {
                 // tag=10 (player class broadcast) só dispara na transição de visibilidade.
@@ -959,6 +975,33 @@ namespace WSEngine
             if (InvokeRequired) { BeginInvoke((Action)(() => OnGameStopped(oldPid))); return; }
             AppendLog("Warspear stopped (PID " + oldPid + ") — auto-stopping capture.");
             StopCapture();
+        }
+
+        // Dispatched em UI thread quando ServerDiscovery confirma novo endpoint
+        // ou volta pra vazio (game fechou). Atualiza filter + restart capture
+        // se estiver rodando com IP obsoleto.
+        void OnServerEndpointChanged(string ip, int port)
+        {
+            if (string.IsNullOrEmpty(ip))
+            {
+                AppendLog("[server-discovery] endpoint cleared (game closed / no established conn)");
+                return;
+            }
+            AppendLog("[server-discovery] endpoint " + ip + ":" + port
+                + (ServerDiscovery.LastDiag != null ? "  (" + ServerDiscovery.LastDiag + ")" : ""));
+            if (_activeServerIp == ip) return;
+            string oldIp = _activeServerIp;
+            _activeServerIp = ip;
+            bool wasCapturing = IsCapturing();
+            if (wasCapturing)
+            {
+                AppendLog("[server-discovery] IP mudou " + oldIp + " → " + ip + " — restart capture");
+                StopCapture();
+                // Pequeno delay pra dumpcap encerrar limpo antes de re-abrir
+                var t = new Timer { Interval = 500 };
+                t.Tick += (s, ev) => { t.Stop(); t.Dispose(); if (!_userStoppedCapture) StartCapture(); };
+                t.Start();
+            }
         }
 
         void BuildUi()
@@ -3103,7 +3146,12 @@ namespace WSEngine
                 return;
             }
             var info = (InterfaceInfo)cmbIf.SelectedItem;
-            string filter = txtFilter.Text.Trim();
+            // Filter usa IP descoberto dinamicamente (ServerDiscovery). Se
+            // descoberta ainda não confirmou (2 polls estáveis), cai no
+            // fallback hardcoded. txtFilter é sobrescrito toda vez pra ficar
+            // consistente com o IP ativo — user não precisa editar manualmente.
+            string filter = "host " + _activeServerIp;
+            txtFilter.Text = filter;
             string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             pcapPath = Path.Combine(capturesDir, "ws_" + stamp + ".pcapng");
             logPath = Path.Combine(capturesDir, "ws_" + stamp + ".dumpcap.log");
