@@ -70,6 +70,13 @@ namespace WSEngine
 
         public static Action OnPullMerged;
 
+        // Callback opcional retornando o set de entity_ids que já foram vistos
+        // em pelo menos 1 packet real (chat, tag=25 enter, tag=427 damage, etc).
+        // Wire pelo MainForm. PushLoop consulta antes de cada delta pra filtrar
+        // structs lixo de memscan (UI text, quest object, mob type struct que
+        // casaram no fingerprint mas nunca apareceram em wire real).
+        public static Func<HashSet<uint>> PacketConfirmedProvider;
+
         public static int CachedCount { get { lock (_lock) return _cache.Count; } }
         public static string ClientIdForDiag { get { return _clientId ?? "(uninitialized)"; } }
         public static DateTime LastPullAtUtc { get { return _lastPullAt; } }
@@ -213,7 +220,9 @@ namespace WSEngine
                     Dictionary<uint, RemoteEntry> remoteSnap;
                     lock (_lock) { remoteSnap = new Dictionary<uint, RemoteEntry>(_cache); }
 
-                    var delta = ComputeDeltaVsRemote(current, remoteSnap, _clientId);
+                    HashSet<uint> confirmed = null;
+                    try { if (PacketConfirmedProvider != null) confirmed = PacketConfirmedProvider(); } catch { }
+                    var delta = ComputeDeltaVsRemote(current, remoteSnap, _clientId, confirmed);
                     if (delta.Count > 0)
                     {
                         // Soft cap: se ultrapassar limite/hora, cai fora do tick
@@ -533,13 +542,18 @@ namespace WSEngine
         internal static List<PushEntry> ComputeDeltaVsRemote(
             Dictionary<uint, LocalSnapshotEntry> current,
             Dictionary<uint, RemoteEntry> remote,
-            string clientId)
+            string clientId,
+            HashSet<uint> packetConfirmed = null)
         {
             var result = new List<PushEntry>();
             foreach (var kv in current)
             {
                 if (kv.Value == null || string.IsNullOrEmpty(kv.Value.Nick)) continue;
                 if (!IsValidNick(kv.Value.Nick)) continue;
+                // Cross-validate: só sobe eid que APAREÇA em packet real.
+                // Elimina lixo do memscan (structs de UI text/quest/etc que
+                // casaram no fingerprint mas nick jamais foi observado no wire).
+                if (packetConfirmed != null && !packetConfirmed.Contains(kv.Key)) continue;
 
                 RemoteEntry r;
                 bool hasRemote = remote.TryGetValue(kv.Key, out r) && r != null;

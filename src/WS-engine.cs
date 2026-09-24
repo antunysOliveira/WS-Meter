@@ -842,6 +842,21 @@ namespace WSEngine
                 if (InvokeRequired) { BeginInvoke((Action)(() => CommunitySync.SeedFromCache(_autoNameCacheRef, _playerClassIdRef))); }
                 else CommunitySync.SeedFromCache(_autoNameCacheRef, _playerClassIdRef);
             };
+            // Cross-validate memscan → packet: só sobe eid que foi observado
+            // em pelo menos 1 packet real (chat, spawn, damage). nameMap é
+            // populado somente por packet decoders (ExtractPlayerNamesTimed,
+            // Tag551/554/207/etc); se eid nunca apareceu em wire, memscan
+            // provavelmente pegou struct de UI/quest que casa no fingerprint.
+            var _nameMapRef = nameMap;
+            CommunitySync.PacketConfirmedProvider = () => {
+                try
+                {
+                    // nameMap não é thread-safe — copia sob lock implícito da
+                    // interface Dictionary. Manter cópia curta.
+                    return new HashSet<uint>(_nameMapRef.Keys);
+                }
+                catch { return new HashSet<uint>(); }
+            };
             CommunitySync.Init(root, communityUrl, communityKey, communityEnabled, ver);
             CommunitySync.SeedFromCache(autoNameCache, playerClassId);
             // ──────────────────────────────────────────────────────────────────────────────
