@@ -385,11 +385,13 @@ function setAreaCount(msg) {
     var mobs = msg.mobs || 0;
     var other = msg.other || 0;
     var total = msg.total || (players + pets + mobs + other);
-    document.getElementById('area-players-n').textContent = players;
-    // toolbar "mobs" pill = mobs + pets so raid-side scans still see the summon total
-    document.getElementById('area-mobs-n').textContent = (mobs + pets);
+    // Area counter pill foi removida da toolbar — null-check antes de atualizar
+    var _ap = document.getElementById('area-players-n');
+    if (_ap) _ap.textContent = players;
+    var _am = document.getElementById('area-mobs-n');
+    if (_am) _am.textContent = (mobs + pets);
 
-    // Jogadores tab summary cards (detailed breakdown)
+    // Jogadores tab foi removida — setNum já era null-safe
     var setNum = function (id, n) { var el = document.getElementById(id); if (el) el.textContent = n; };
     setNum('area-total', total);
     setNum('area-players', players);
@@ -442,20 +444,29 @@ function fmtDmgShort(n) {
     if (n < 1000000) return Math.round(n / 1000) + 'k';
     return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
 }
-function copyTopToClipboard() {
+// mode: 'all' (dano geral) | 'raid' (dano só em boss raid)
+function copyTopToClipboard(mode) {
+    mode = mode || 'all';
     if (!lastParticipants || lastParticipants.length === 0) {
         setStatus('Nada para copiar.');
         return;
     }
+    var valueOf = function (r) {
+        return mode === 'raid' ? (r.damageRaid || 0) : (r.damage || 0);
+    };
+    var header = mode === 'raid' ? 'TOP DANO EM BOSS RAID' : 'TOP DANO GERAL';
+    // Re-sort by mode value (backend sorts por damage total)
+    var sorted = lastParticipants.slice().sort(function (a, b) { return valueOf(b) - valueOf(a); });
     var parts = [];
-    for (var i = 0; i < lastParticipants.length; i++) {
-        var r = lastParticipants[i];
-        if (!r.damage || r.damage <= 0) continue;
-        parts.push((i + 1) + '- ' + r.name + ' ' + fmtDmgShort(r.damage));
+    for (var i = 0; i < sorted.length; i++) {
+        var r = sorted[i];
+        var v = valueOf(r);
+        if (v <= 0) continue;
+        parts.push((parts.length + 1) + '- ' + r.name + ' ' + fmtDmgShort(v));
     }
-    if (parts.length === 0) { setStatus('Nada para copiar.'); return; }
-    var text = parts.join('\n');
-    var done = function () { setStatus('Top copiado (' + parts.length + ' jogadores).'); };
+    if (parts.length === 0) { setStatus('Nada para copiar (' + mode + ').'); return; }
+    var text = header + '\n' + parts.join('\n');
+    var done = function () { setStatus('Top copiado — ' + mode + ' (' + parts.length + ' jogadores).'); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
     } else {
@@ -475,16 +486,22 @@ function fallbackCopy(text) {
 }
 
 // ---------- Buttons ----------
-// Buttons — semantics fixed 2026-09-23 per user request:
-//   btn-capture: single toggle start/stop (▶/■). Default mode = 'start'.
-//   btn-reset:   restart capture (kill dumpcap + fresh pcap). Enabled only
-//                while a capture is running.
-//   btn-copy:    copy leaderboard top to clipboard.
+// Buttons:
+//   btn-capture:     single toggle start/stop (▶/■). Default mode = 'start'.
+//   btn-reset:       restart capture (kill dumpcap + fresh pcap).
+//   btn-copy-geral:  copia top do dano geral (todos os alvos).
+//   btn-copy-raid:   copia top do dano em boss raid (HP > 800k).
 document.getElementById('btn-reset').addEventListener('click', function () {
     if (this.disabled) return;
     sendCmd('reset');
 });
-document.getElementById('btn-copy').addEventListener('click', copyTopToClipboard);
+var _btnCopyGeral = document.getElementById('btn-copy-geral');
+if (_btnCopyGeral) _btnCopyGeral.addEventListener('click', function () { copyTopToClipboard('all'); });
+var _btnCopyRaid = document.getElementById('btn-copy-raid');
+if (_btnCopyRaid) _btnCopyRaid.addEventListener('click', function () { copyTopToClipboard('raid'); });
+// Retro-compat: btn-copy antigo (fallback caso HTML velho fique em cache)
+var _btnCopyLegacy = document.getElementById('btn-copy');
+if (_btnCopyLegacy) _btnCopyLegacy.addEventListener('click', function () { copyTopToClipboard('all'); });
 document.getElementById('btn-capture').addEventListener('click', function () {
     var mode = this.dataset.mode || 'start';
     console.log('[btn-capture] click mode=' + mode);
@@ -498,14 +515,17 @@ document.getElementById('btn-capture').addEventListener('click', function () {
 });
 
 // Toggle mobs row visibility. Persisted so the choice sticks across runs.
+// UI do botão foi removida (área simplificada). Wire só liga se elemento existir.
 function applyMobsToggleUi() {
     var btn = document.getElementById('btn-toggle-mobs');
+    if (!btn) return;
     if (showMobs) btn.classList.add('active'); else btn.classList.remove('active');
     btn.title = showMobs
         ? 'Ocultar dano de mobs no leaderboard'
         : 'Mostrar dano de mobs no leaderboard';
 }
-document.getElementById('btn-toggle-mobs').addEventListener('click', function () {
+var _btnToggleMobs = document.getElementById('btn-toggle-mobs');
+if (_btnToggleMobs) _btnToggleMobs.addEventListener('click', function () {
     showMobs = !showMobs;
     try { localStorage.setItem('ws:showMobs', showMobs ? '1' : '0'); } catch (e) {}
     applyMobsToggleUi();
@@ -567,11 +587,13 @@ function renderPlayers(roster) {
         return byGuild[b].length - byGuild[a].length;
     });
 
-    // area-players is set by setAreaCount from backend; guilds count comes here
-    document.getElementById('guilds-total').textContent = guildNames.filter(function (g) { return g !== ''; }).length;
+    // Guilds panel removido — null-safe
+    var _gt = document.getElementById('guilds-total');
+    if (_gt) _gt.textContent = guildNames.filter(function (g) { return g !== ''; }).length;
 
     var q = playersFilterText.toLowerCase();
     var list = document.getElementById('guilds-list');
+    if (!list) return;   // painel removido, sem renderização
     list.innerHTML = '';
     for (var gi = 0; gi < guildNames.length; gi++) {
         var gname = guildNames[gi];

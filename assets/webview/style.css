@@ -77,6 +77,16 @@ body {
 #btn-reset.btn-svg { color: #dc5a5a; }
 #btn-copy.btn-svg { color: #c0c3cb; }
 #btn-copy.btn-svg:hover { color: #7ad28c; }
+#btn-copy-geral.btn-svg { color: #c0c3cb; }
+#btn-copy-geral.btn-svg:hover { color: #4a9eff; }
+#btn-copy-raid.btn-svg { color: #ffcdd0; }
+#btn-copy-raid.btn-svg:hover { color: #dc5a5a; }
+.btn-svg-label {
+    font-size: 11px;
+    margin-left: 6px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
 
 .capture-indicator {
     display: inline-flex;
