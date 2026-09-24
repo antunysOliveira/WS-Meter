@@ -36,6 +36,7 @@ if not exist "%CSC%" (
     "%~dp0src\TlvDamageDecoderV3.cs" ^
     "%~dp0src\Tag99HealDecoder.cs" ^
     "%~dp0src\Tag429BuffDecoder.cs" ^
+    "%~dp0src\Tag26EntitySpawnDecoder.cs" ^
     "%~dp0src\SummonOwnerMap.cs" ^
     "%~dp0src\Tag207Decoder.cs" ^
     "%~dp0src\Tag11PlayerDetailDecoder.cs" ^

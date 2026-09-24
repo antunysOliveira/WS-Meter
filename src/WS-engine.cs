@@ -286,6 +286,43 @@ namespace WSEngine
                     if (i + 3 < args.Length) int.TryParse(args[i + 3], out maxN);
                     return ProbeIds.DumpTag(args[i + 1], tagN, maxN);
                 }
+                if (i + 1 < args.Length && args[i] == "--dump-spawns")
+                {
+                    AttachConsole(ATTACH_PARENT_PROCESS);
+                    string pcap = args[i + 1];
+                    GameData.Init(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data"));
+                    string diag;
+                    var segs = PcapngReader.ReadTcp(pcap, "152.233.19.169", out diag);
+                    var res = TlvSplit.Parse(segs);
+                    if (res == null || res.Messages == null || res.Messages.Count == 0) { Console.Error.WriteLine("no messages"); return 2; }
+                    double t0 = res.Messages[0].Time;
+                    var spawns = Tag26EntitySpawnDecoder.Build(res.Messages, t0);
+                    Console.WriteLine("=== Spawns via decoder (" + spawns.Count + " entities) ===");
+                    var byRank = new Dictionary<string, List<EntitySpawnInfo>>();
+                    foreach (var kv in spawns)
+                    {
+                        var k = kv.Value.Rank ?? "unknown";
+                        if (!byRank.ContainsKey(k)) byRank[k] = new List<EntitySpawnInfo>();
+                        byRank[k].Add(kv.Value);
+                    }
+                    foreach (var rankName in new[] { "raid", "chefe", "forte", "comum" })
+                    {
+                        if (!byRank.ContainsKey(rankName)) continue;
+                        var lst = byRank[rankName];
+                        lst.Sort((a,b) => b.MaxHp.CompareTo(a.MaxHp));
+                        Console.WriteLine();
+                        Console.WriteLine("--- " + rankName.ToUpper() + " (" + lst.Count + " entities) ---");
+                        var seenTid = new HashSet<int>();
+                        foreach (var e in lst)
+                        {
+                            if (seenTid.Contains(e.TypeId)) continue;
+                            seenTid.Add(e.TypeId);
+                            string mobName = GameData.MobName((uint)e.TypeId) ?? "?";
+                            Console.WriteLine("  tid=" + e.TypeId + " hp=" + e.MaxHp + "  " + mobName);
+                        }
+                    }
+                    return 0;
+                }
                 if (i + 1 < args.Length && args[i] == "--roster-analyze")
                 {
                     AttachConsole(ATTACH_PARENT_PROCESS);
@@ -634,6 +671,7 @@ namespace WSEngine
         double fightLastTime  = -1;         // most recent damage event time
         ImageList _classIconList;           // 22x22 class icons, image key = "class_<id>" ; loaded from assets/class-icons/individual/
         Dictionary<uint, int> playerClassId = new Dictionary<uint, int>();  // memscan populates; leaderboard consults for icon lookup
+        Dictionary<uint, EntitySpawnInfo> _entitySpawnCache = new Dictionary<uint, EntitySpawnInfo>();  // tag=26 → max_hp por entity_id, base pra rank de mob
         Dictionary<int, string> classIconMap = new Dictionary<int, string>();  // classId → filename from assets/class-icons/individual/class-icon-map.json
         readonly string mePath;
         readonly string nicknamesPath;
@@ -1222,6 +1260,22 @@ namespace WSEngine
                 Dictionary<uint, List<ConsumableBuff>> buffMapAll;
                 try { buffMapAll = Tag429BuffDecoder.Build(curFrames, t0, nowSecForBuffs); }
                 catch { buffMapAll = new Dictionary<uint, List<ConsumableBuff>>(); }
+
+                // Entity spawn map (tag=26) — captura max_hp por entity_id, usado
+                // pra classificar rank (comum/forte/chefe/raid) do target.
+                try
+                {
+                    var spawns = Tag26EntitySpawnDecoder.Build(curFrames, t0);
+                    foreach (var kv in spawns)
+                    {
+                        EntitySpawnInfo existing;
+                        if (!_entitySpawnCache.TryGetValue(kv.Key, out existing) || existing == null)
+                            _entitySpawnCache[kv.Key] = kv.Value;
+                        else if (kv.Value.MaxHp > existing.MaxHp)
+                            _entitySpawnCache[kv.Key] = kv.Value;   // upgrade (mob volta hp full)
+                    }
+                }
+                catch { }
 
                 // Build JSON.
                 bool hasRoster = rosterIds.Count > 0;
