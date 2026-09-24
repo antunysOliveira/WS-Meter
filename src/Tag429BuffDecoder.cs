@@ -116,9 +116,26 @@ namespace WSEngine
 
             List<ConsumableBuff> list;
             if (!map.TryGetValue(target, out list)) { list = new List<ConsumableBuff>(); map[target] = list; }
-            // If a buff with the same influence_id already applied, replace (refresh).
+            // Warspear rule: uma nova poção/comida/pergaminho SOBREPÕE outra da
+            // mesma categoria (não acumula) — timer reseta pro tempo do novo.
+            // Dedup por categoria via GameData.ConsumableCategory(item_id).
+            // Se categoria desconhecida (item novo/uncategorized), fallback pra
+            // dedup por influence_id (comportamento antigo, safe).
+            string catNew = GameData.ConsumableCategory(item);
             for (int k = list.Count - 1; k >= 0; k--)
-                if (list[k].InfluenceId == infl) list.RemoveAt(k);
+            {
+                bool sameSlot;
+                if (!string.IsNullOrEmpty(catNew))
+                {
+                    string catOld = GameData.ConsumableCategory(list[k].ItemId);
+                    sameSlot = (catOld == catNew);
+                }
+                else
+                {
+                    sameSlot = (list[k].InfluenceId == infl);
+                }
+                if (sameSlot) list.RemoveAt(k);
+            }
             list.Add(b);
         }
 
