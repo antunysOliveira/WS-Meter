@@ -36,6 +36,13 @@
     <section id="tab-luta" class="tab-panel active">
         <div class="filter-row">
             <input type="text" id="filter-input" placeholder="Filtrar por alvo..." />
+            <div class="rank-tabs" role="tablist" aria-label="Filtrar dano por rank do alvo">
+                <button class="rank-tab active" data-rank="all"   title="Somatório de todos os alvos (comportamento padrão)">Geral</button>
+                <button class="rank-tab"        data-rank="raid"  title="Dano em chefes raid (HP &gt; 800k)">Raid</button>
+                <button class="rank-tab"        data-rank="chefe" title="Dano em chefes normais (HP 100k–800k)">Chefe</button>
+                <button class="rank-tab"        data-rank="forte" title="Dano em elites/mini-bosses (HP 10k–100k)">Forte</button>
+                <button class="rank-tab"        data-rank="comum" title="Dano em mobs comuns (HP ≤ 10k)">Comum</button>
+            </div>
         </div>
         <main class="table-wrap">
             <table class="leaderboard">

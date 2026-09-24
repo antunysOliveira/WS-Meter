@@ -151,6 +151,30 @@ body {
     transition: border-color 150ms ease, background 150ms ease;
 }
 .filter-row input:focus { border-color: #4a9eff; background: #191b23; }
+
+/* Rank tabs — filtra dano exibido por rank do target (all/raid/chefe/forte/comum). */
+.rank-tabs { display: inline-flex; gap: 2px; margin-left: 8px; }
+.rank-tab {
+    background: #16181e;
+    color: #a0a3ab;
+    border: 1px solid #2a2d36;
+    padding: 5px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.rank-tab:hover { background: #22252d; color: #e0e0e0; border-color: #33363f; }
+.rank-tab.active {
+    background: #1a2c48;
+    color: #cfe1ff;
+    border-color: #4a9eff;
+    font-weight: 600;
+}
+.rank-tab[data-rank="raid"].active  { background: #4a1f22; color: #ffcdd0; border-color: #dc5a5a; }
+.rank-tab[data-rank="chefe"].active { background: #4a3312; color: #ffd9a8; border-color: #f0a860; }
+.rank-tab[data-rank="forte"].active { background: #3a3820; color: #ffe89e; border-color: #d4c060; }
+.rank-tab[data-rank="comum"].active { background: #1e2a1e; color: #b8dcb8; border-color: #7ad28c; }
 .filter-note {
     color: #6a6d76;
     font-size: 11px;

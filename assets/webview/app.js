@@ -60,6 +60,17 @@ function classColor(classId) {
 var rowMap = new Map();
 var dividerRow = null;
 var lastParticipants = [];
+var currentRank = 'all';   // 'all' | 'raid' | 'chefe' | 'forte' | 'comum'
+function damageFor(r) {
+    if (!r) return 0;
+    switch (currentRank) {
+        case 'raid':  return r.damageRaid  || 0;
+        case 'chefe': return r.damageChefe || 0;
+        case 'forte': return r.damageForte || 0;
+        case 'comum': return r.damageComum || 0;
+        default:      return r.damage      || 0;
+    }
+}
 
 // Persisted setting: show aggregated "Mobs (N)" row. Off by default.
 var showMobs = false;
@@ -206,9 +217,10 @@ function updateRow(entry, r, maxDmg, isHealOnly) {
     }
 
     // Bar width (participants only; hidden on healers via CSS)
+    var dmgDisplay = damageFor(r);
     var pct = 0;
-    if (!isHealOnly && maxDmg > 0 && r.damage > 0) {
-        pct = Math.max(0, (r.damage / maxDmg) * 100);
+    if (!isHealOnly && maxDmg > 0 && dmgDisplay > 0) {
+        pct = Math.max(0, (dmgDisplay / maxDmg) * 100);
     }
     if (values.pct !== pct) {
         cells.bar.style.width = pct.toFixed(2) + '%';
@@ -216,12 +228,12 @@ function updateRow(entry, r, maxDmg, isHealOnly) {
     }
 
     // Numeric cells
-    animateNumber(cells.damage,      values.damage,      r.damage,      fmtNumber);
+    animateNumber(cells.damage,      values.damage,      dmgDisplay,    fmtNumber);
     animateNumber(cells.received,    values.received,    r.received,    fmtNumber);
     animateNumber(cells.healingDone, values.healingDone, r.healingDone, fmtNumber);
     animateNumber(cells.dps,         values.dps,         r.dps,         fmtDps);
     animateNumber(cells.max,         values.max,         r.max,         fmtNumber);
-    values.damage      = r.damage;
+    values.damage      = dmgDisplay;
     values.received    = r.received;
     values.healingDone = r.healingDone;
     values.dps         = r.dps;
@@ -258,7 +270,9 @@ function animateReorder(oldPos) {
 }
 
 // ---------- Render leaderboard (diff-based) ----------
+var _lastLbRows = [];
 function renderLeaderboard(rows) {
+    _lastLbRows = rows || [];
     var tbody = document.getElementById('lb-body');
 
     // Partition into participants + healers-only. Filter mob aggregate rows
@@ -270,14 +284,19 @@ function renderLeaderboard(rows) {
         if (!showMobs && isMobRowId(r.id)) continue;
         if (r.participant === false) healOnly.push(r); else participants.push(r);
     }
-    // Backend already sorts by damage desc; keep as-is. Healers by healingDone desc.
+    // Backend sorts by 'damage' (total). When rank filter ativo, re-sort local
+    // por damageFor(rank), assim leaderboard reflete "top X em raid/chefe/etc".
+    if (currentRank !== 'all') {
+        participants.sort(function (a, b) { return damageFor(b) - damageFor(a); });
+    }
     healOnly.sort(function (a, b) { return (b.healingDone || 0) - (a.healingDone || 0); });
     lastParticipants = participants.slice();
 
-    // Max damage for bar scaling (participants only)
+    // Max damage for bar scaling (participants only) — usa valor filtrado
     var maxDmg = 0;
     for (var j = 0; j < participants.length; j++) {
-        if (participants[j].damage > maxDmg) maxDmg = participants[j].damage;
+        var v = damageFor(participants[j]);
+        if (v > maxDmg) maxDmg = v;
     }
 
 
@@ -719,6 +738,22 @@ function tickClock() {
 }
 tickClock();
 setInterval(tickClock, 30000);
+
+// Rank tabs — filtra dano exibido no leaderboard por rank do target
+(function wireRankTabs() {
+    var tabs = document.querySelectorAll('.rank-tab');
+    for (var i = 0; i < tabs.length; i++) {
+        tabs[i].addEventListener('click', function (ev) {
+            var rank = ev.currentTarget.getAttribute('data-rank') || 'all';
+            if (rank === currentRank) return;
+            currentRank = rank;
+            for (var k = 0; k < tabs.length; k++) tabs[k].classList.remove('active');
+            ev.currentTarget.classList.add('active');
+            // Re-render com rows atuais
+            if (_lastLbRows && _lastLbRows.length) renderLeaderboard(_lastLbRows);
+        });
+    }
+})();
 
 // Signal ready
 sendCmd('ready');

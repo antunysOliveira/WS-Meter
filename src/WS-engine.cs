@@ -1200,6 +1200,9 @@ namespace WSEngine
                 int hitsUnresolved = 0;
                 uint maxUnresolved = 0;
                 var perTargetReceivedLocal = new Dictionary<uint, long>();
+                // Damage split por rank do target (via _entitySpawnCache):
+                //   attackerId → { "raid":long, "chefe":long, "forte":long, "comum":long }
+                var perAttackerByRank = new Dictionary<uint, Dictionary<string, long>>();
                 foreach (var e in events)
                 {
                     if (e.Target != 0)
@@ -1217,6 +1220,23 @@ namespace WSEngine
                     List<int> hits;
                     if (!perAttacker.TryGetValue(e.Attacker, out hits)) { hits = new List<int>(); perAttacker[e.Attacker] = hits; }
                     hits.Add((int)e.Amount);
+
+                    // Cross-reference target rank (via spawn cache) e agrega
+                    if (e.Target != 0)
+                    {
+                        EntitySpawnInfo si;
+                        if (_entitySpawnCache.TryGetValue(e.Target, out si) && si != null && si.Rank != null)
+                        {
+                            Dictionary<string, long> rankMap;
+                            if (!perAttackerByRank.TryGetValue(e.Attacker, out rankMap))
+                            {
+                                rankMap = new Dictionary<string, long>();
+                                perAttackerByRank[e.Attacker] = rankMap;
+                            }
+                            long cur; rankMap.TryGetValue(si.Rank, out cur);
+                            rankMap[si.Rank] = cur + e.Amount;
+                        }
+                    }
                 }
 
                 double fightSec = 0;
@@ -1323,10 +1343,26 @@ namespace WSEngine
 
                     if (!first) sb.Append(',');
                     first = false;
+                    // Damage split por rank do target (raid/chefe/forte/comum).
+                    // Só populado onde spawn cache resolveu target — dano em
+                    // entity sem spawn observado NÃO entra em nenhum bucket.
+                    long dmgRaid = 0, dmgChefe = 0, dmgForte = 0, dmgComum = 0;
+                    Dictionary<string, long> rankMapRow;
+                    if (perAttackerByRank.TryGetValue(id, out rankMapRow) && rankMapRow != null)
+                    {
+                        rankMapRow.TryGetValue("raid",  out dmgRaid);
+                        rankMapRow.TryGetValue("chefe", out dmgChefe);
+                        rankMapRow.TryGetValue("forte", out dmgForte);
+                        rankMapRow.TryGetValue("comum", out dmgComum);
+                    }
                     sb.Append("{\"id\":\"0x").Append(id.ToString("x8")).Append("\"")
                       .Append(",\"name\":\"").Append(JsonEsc(NameFor(id))).Append('"')
                       .Append(",\"guild\":\"").Append(JsonEsc(guild ?? "")).Append('"')
                       .Append(",\"damage\":").Append(tot)
+                      .Append(",\"damageRaid\":").Append(dmgRaid)
+                      .Append(",\"damageChefe\":").Append(dmgChefe)
+                      .Append(",\"damageForte\":").Append(dmgForte)
+                      .Append(",\"damageComum\":").Append(dmgComum)
                       .Append(",\"received\":").Append(received)
                       .Append(",\"healingDone\":").Append(healDone)
                       .Append(",\"healingRecv\":").Append(healRecv)

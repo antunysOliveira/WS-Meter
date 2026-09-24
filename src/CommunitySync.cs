@@ -497,6 +497,31 @@ namespace WSEngine
 
         // ── Pure helpers ────────────────────────────────────────────────────────
 
+        // Rejeita nicks inválidos antes de push:
+        //  - vazio ou > 10 chars (Warspear cap)
+        //  - todo caixa alta com > 1 char (ex "KILL", "REAGRUPAR" — chat shout,
+        //    não é nick real que memscan capturou como false positive)
+        //  - caractere fora de [A-Za-z0-9] (nick Warspear só letras+dígitos;
+        //    caracteres tipo espaço, hífen, acento = palavra de chat ou lixo)
+        internal static bool IsValidNick(string nick)
+        {
+            if (string.IsNullOrEmpty(nick)) return false;
+            if (nick.Length > MaxNickLen) return false;
+            bool hasLower = false;
+            for (int i = 0; i < nick.Length; i++)
+            {
+                char c = nick[i];
+                bool isLower = (c >= 'a' && c <= 'z');
+                bool isUpper = (c >= 'A' && c <= 'Z');
+                bool isDigit = (c >= '0' && c <= '9');
+                if (!isLower && !isUpper && !isDigit) return false;
+                if (isLower) hasLower = true;
+            }
+            // 1-char pode ser tudo. > 1 char sem letra minúscula = ALL-CAPS = rejeita.
+            if (nick.Length > 1 && !hasLower) return false;
+            return true;
+        }
+
         // Compara local (memscan) vs remote (backend snapshot em RAM).
         // Só emite push quando local tem info NOVA vs backend:
         //   - Entity ausente no backend → push completo
@@ -514,7 +539,7 @@ namespace WSEngine
             foreach (var kv in current)
             {
                 if (kv.Value == null || string.IsNullOrEmpty(kv.Value.Nick)) continue;
-                if (kv.Value.Nick.Length > MaxNickLen) continue;
+                if (!IsValidNick(kv.Value.Nick)) continue;
 
                 RemoteEntry r;
                 bool hasRemote = remote.TryGetValue(kv.Key, out r) && r != null;
