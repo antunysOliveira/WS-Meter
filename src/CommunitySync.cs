@@ -550,17 +550,22 @@ namespace WSEngine
             {
                 if (kv.Value == null || string.IsNullOrEmpty(kv.Value.Nick)) continue;
                 if (!IsValidNick(kv.Value.Nick)) continue;
-                // Cross-validate: só sobe eid que APAREÇA em packet real.
-                // Elimina lixo do memscan (structs de UI text/quest/etc que
-                // casaram no fingerprint mas nick jamais foi observado no wire).
-                if (packetConfirmed != null && !packetConfirmed.Contains(kv.Key)) continue;
 
                 RemoteEntry r;
                 bool hasRemote = remote.TryGetValue(kv.Key, out r) && r != null;
 
+                // Cross-validation gate: aplicada SÓ pra push novo (eid não
+                // existe no backend). Se remote já tem o eid, o nick já foi
+                // validado por outro client — daqui pra frente qualquer
+                // upgrade de class é seguro sem passar pelo packet-confirmed.
+                //
+                // Bug pré-2026-09-25: gate rodava antes do check hasRemote,
+                // então class upgrade também exigia packet-confirmed. Se o
+                // player não voltasse em pacote na sessão, class ficava presa
+                // local. Backend ficava só 3-4% coverage de class.
                 if (!hasRemote)
                 {
-                    // Backend nunca viu — push completo
+                    if (packetConfirmed != null && !packetConfirmed.Contains(kv.Key)) continue;
                     result.Add(new PushEntry { EntityId = kv.Key, Nick = kv.Value.Nick, ClassId = kv.Value.ClassId, ClientId = clientId });
                     continue;
                 }
@@ -570,9 +575,11 @@ namespace WSEngine
 
                 if (nickDiffers || classUpgrade)
                 {
-                    // Nick diff (raro) OU upgrade de class (frequente).
-                    // Enviamos class_id do local se >0, senão do backend (preserva).
-                    // Trigger server-side também protege caso race chegue.
+                    // Nick diff: exige packet-confirmed (previne memscan noise
+                    // sobrescrever um nick validado por outro client).
+                    // Class upgrade: sem gate — eid já validado, memscan class
+                    // é estrutural (ScanBuffer_PlayerClass, byte 0x21 marker).
+                    if (nickDiffers && packetConfirmed != null && !packetConfirmed.Contains(kv.Key)) continue;
                     int effectiveClass = kv.Value.ClassId > 0 ? kv.Value.ClassId : r.ClassId;
                     result.Add(new PushEntry { EntityId = kv.Key, Nick = kv.Value.Nick, ClassId = effectiveClass, ClientId = clientId });
                 }
