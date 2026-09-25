@@ -651,6 +651,13 @@ namespace WSEngine
             foreach (var e in incoming)
             {
                 if (e == null || e.EntityId == 0 || string.IsNullOrEmpty(e.Nick)) continue;
+                // Defesa in-depth [2026-09-25]: rejeita ids com pattern suspeito
+                // no pull. Historicamente byte-scan flat populou o backend com
+                // rows tipo (0x00E70000, "Criar") — UI/quest strings casadas
+                // por acidente. Real player ids são sparse random; nunca terminam
+                // em 0x0000. Filtro aplicado no pull evita repolluição de caches
+                // locais mesmo se rows lixo persistirem no backend.
+                if ((e.EntityId & 0xFFFF) == 0) continue;
                 RemoteEntry cur;
                 if (cache.TryGetValue(e.EntityId, out cur))
                 {
