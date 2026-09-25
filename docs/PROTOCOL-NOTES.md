@@ -4,6 +4,114 @@
 
 ---
 
+## 2026-09-25 — tag=65 nested em tag=492 (Fase B do Task 3)
+
+Chat mensagens do modo público chegam como top-level `tag=65` durante conversa
+em tempo real. **Chat carried inside batch broadcasts** (roster updates, area
+sync, etc.) chega **nested dentro de tag=492 LZ4**. Probe
+`_probe-name-inner-tag.ps1` nas 3 capturas de referência:
+
+| Capture | byte-scan hits em tag=492 body descomprimido | todos em tag=65 nested? |
+|---------|---:|:---:|
+| ws_20260921 | 18 | ✓ 100% |
+| ws_20260923 | 64 | ✓ 100% |
+| ws_20260924 | 3  | ✓ 100% |
+
+Nenhum outro inner tag carrega name+id em texto plano no corpo LZ4-decomp.
+Roster estrutural separado (Fase B hipótese inicial) **não existe** —
+byte-scan Pattern A dentro de tag=492 era só pegar chat nested. Solução:
+`ExtractChatSenders` estendido pra também walk tag=65 nested em tag=492.
+Byte-scan `ExtractNamesFromContainer492` removido do pipeline vivo.
+
+Situações em que tag=551/554 emitem (para referência):
+- **tag=551** (instance roster): confirmado em raid-entry transitions.
+  Ausente nas 3 capturas de teste (nenhuma entrada de instância registrada).
+- **tag=554** (scoreboard): confirmado em raid-end / PvP arena results.
+  Idem — não fired nas capturas testadas.
+
+---
+
+## 2026-09-25 — tag=65 second-id field (unknown, provável account/PM)
+
+Cada tag=65 chat body carrega **dois** valores id-shaped adjacentes ao name
+ASCII do sender. `ExtractChatSenders` só usa o primeiro (bytes 3..6). O
+segundo — logo APÓS o name — muda de mapeamento entre sessões e nunca é
+world/character entity id.
+
+Exemplos observados:
+- pré-update raid `ws_20260923_234032`, msg#1:
+  ```
+  00 41 10 4b 39 42 00 09 4b 69 6c 6c 65 72 64 61 64 22 91 01 00
+     └─ 3B hdr └─ sender=0x0042394b └─ nlen └── "Killerdad" ──── └── 2ndId=0x00019122
+  ```
+- pré-update raid (mesma id 0x00019122): mapeado a "Eunemdropo"
+- pós-update `ws_20260924_171950`: 0x00019122 → "Havel"
+
+Três nomes diferentes para o mesmo id em três sessões. Provavelmente
+**account id** ou **PM correspondence id** (ver CLAUDE.md "PM — decoded",
+onde recipient_account_id é distinto do character id). Não usar como entity
+id em nenhum lugar; sempre discardar.
+
+Byte-scan pre-Fase-A gravava esse id no `nameMap` com o nome do sender,
+poluindo o cache com pares (id_incorreto, nick_correto) — corrigido em
+`fix(nick): gating por evento + byte-scan restrito ao tag=492`.
+
+---
+
+## 2026-09-25 — Entity_id range shift (Warspear v13.4.4 patch)
+
+Após update do jogo, o **high byte** do `entity_id` migrou de `0x05` para
+`0x0B` em **todos** os spawns (mobs, adds, raids, invocações). O layout do
+tag=26 body ficou idêntico; só o namespace numérico mudou.
+
+### Evidência hex (mesma classe de summon, tid=21813 "Esqueleto Amaldiçoado")
+
+Pré-update — `captures/ws_20260921_183825.pcapng`:
+```
+tag=26 body len=41:
+  35 55 27 f9 f5 05 00 00 80 3f 10 0a 10 0a c4 0b
+       └─ eid = 0x05f5f927 (high=0x05)
+  00 00 c4 0b 00 00 64 00 64 00 00 00 00 00 00 00
+  00 00 00 e1 5c 45 00 00 00
+           └─ owner@+35 = 0x00455ce1
+```
+
+Pós-update — `captures/ws_20260924_171950.pcapng`:
+```
+tag=26 body len=41:
+  35 55 f2 9f ec 0b 00 00 80 3f 07 13 07 13 94 08
+       └─ eid = 0x0bec9ff2 (high=0x0B)
+  00 00 94 08 00 00 64 00 64 00 00 00 00 00 00 00
+  00 00 00 f4 a8 15 00 00 00
+           └─ owner@+35 = 0x0015a8f4
+```
+
+Layout inalterado: `tid u16@0`, `eid u32@+2`, `owner u32@+35`, body 41 B.
+
+### Componentes que dependiam do byte alto (fixed)
+
+| Site | Antes | Depois |
+|------|-------|--------|
+| `SummonOwnerMap.cs:91` | `(summonId >> 24) != 0x05` rejeita spawn | Filtro removido; aceita spawn se `tid ∈ SummonRegistry` |
+| `WS-engine.cs:2689` (solo fallback) | `(atk >> 24) == 0x05` | Só reescreve se `atk ∈ knownSummonEids` |
+| `Tag26EntitySpawnDecoder.cs:115` | allowlist `{0x05,0x07,0x09,0x0C,0x10,0x57,0xF6}` | Filtro removido; validação estrutural (body 41 B + tid ≠ 0 + eid ≠ 0 + HP sano) basta |
+| `WS-engine.cs:2353` (ClassifyAreaEntity) | mob switch sem `0x0B` | Adicionado `case 0x0B` |
+| `Summary.cs:207` | `(hi == 0x05) → "(pet/mob)"` | `summonEids.Contains(id) → "(invocação)"` |
+
+### Regra geral
+
+O byte alto do entity_id **não é fonte de verdade** — pode mudar em qualquer
+update. Fonte estrutural (tag=26 spawn com tid+layout válidos) é canônica.
+Whitelist de invocação = `src/SummonRegistry.cs` (4 tids: 6547 Lobo Escuridão,
+10583 Esqueleto, 21812 Esq Arqueiro, 21813 Esq Amaldiçoado).
+
+### Regressão coberta
+
+`tools/_test-summon-attribution.ps1` valida 3 capturas (pré IPv4, pré raid,
+pós IPv6): 100% dos spawns de invocação com dono válido entram no ownerMap.
+
+---
+
 ## ⚠️ 2026-09-19 — Fase 2 finding: framing REAL é varint-TLV
 
 **Todo o resto deste arquivo abaixo descreve o modelo antigo `[opcode:u8][len:u8]`.**

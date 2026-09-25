@@ -19,8 +19,45 @@
         </div>
         <div class="tool-right">
             <div class="clock" id="clock">--:--</div>
+            <button id="btn-hamburger" class="btn-hamburger" title="Menu" aria-label="Menu">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+            </button>
+            <div id="hamburger-menu" class="hamburger-menu hidden" role="menu">
+                <button class="menu-item" data-action="capture-history">Histórico de capturas</button>
+            </div>
         </div>
     </header>
+
+    <!-- Capture history modal (Task 4) -->
+    <div id="capture-history-overlay" class="modal-overlay hidden" aria-hidden="true">
+        <div class="modal-panel" role="dialog" aria-labelledby="ch-title">
+            <div class="modal-header">
+                <h2 id="ch-title">Histórico de capturas</h2>
+                <div class="modal-actions">
+                    <button id="ch-open-folder" class="btn-secondary" title="Abrir a pasta de capturas no Explorer">Abrir pasta</button>
+                    <button id="ch-refresh" class="btn-secondary" title="Recarregar lista">Atualizar</button>
+                    <button id="ch-close" class="btn-close" aria-label="Fechar">×</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <table class="ch-table">
+                    <thead>
+                        <tr>
+                            <th class="col-ch-name">Nome</th>
+                            <th class="col-ch-file">Arquivo</th>
+                            <th class="col-ch-date">Data</th>
+                            <th class="col-ch-size">Tamanho</th>
+                            <th class="col-ch-actions">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ch-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
 
     <!-- ============ TAB: LUTA ============ -->
     <section id="tab-luta" class="tab-panel active">

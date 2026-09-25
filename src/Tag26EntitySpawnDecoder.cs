@@ -108,12 +108,13 @@ namespace WSEngine
             // diferente ocasionalmente casa no scan bruto).
             if (maxHp <= 0 || maxHp > 100000000) return;
 
-            // Só considera entities com high byte no range de mob conhecido
-            // (0x05, 0x07, 0x09, 0x0C, 0x10, 0x57, 0xF6). Isso filtra NPCs
-            // e strings coincidentes.
-            byte hi = (byte)((entityId >> 24) & 0xFF);
-            if (hi != 0x05 && hi != 0x07 && hi != 0x09 && hi != 0x0C
-                && hi != 0x10 && hi != 0x57 && hi != 0xF6) return;
+            // [MEDIDO 2026-09-25 - pós update Warspear v13.4.4]
+            // High byte de entity_id mudou de 0x05 → 0x0B em todos os spawns
+            // (mobs e invocações). Lista fixa antiga (0x05/0x07/0x09/0x0C/0x10/
+            // 0x57/0xF6) rejeitava tudo pós-update. Trocado por critério
+            // estrutural: se o corpo tag=26 tem 41 B com tid u16 != 0,
+            // eid u32 != 0 e HP > 0 dentro do teto, aceita como spawn válido.
+            // Nunca mais quebra em migração de namespace do servidor.
 
             var info = new EntitySpawnInfo
             {

@@ -37,6 +37,7 @@ if not exist "%CSC%" (
     "%~dp0src\Tag99HealDecoder.cs" ^
     "%~dp0src\Tag429BuffDecoder.cs" ^
     "%~dp0src\Tag26EntitySpawnDecoder.cs" ^
+    "%~dp0src\SummonRegistry.cs" ^
     "%~dp0src\SummonOwnerMap.cs" ^
     "%~dp0src\Tag207Decoder.cs" ^
     "%~dp0src\Tag11PlayerDetailDecoder.cs" ^
@@ -47,6 +48,8 @@ if not exist "%CSC%" (
     "%~dp0src\ProcessMonitor.cs" ^
     "%~dp0src\ServerDiscovery.cs" ^
     "%~dp0src\Summary.cs" ^
+    "%~dp0src\NickAudit.cs" ^
+    "%~dp0src\CaptureHistory.cs" ^
     "%~dp0src\ProbeIds.cs" ^
     "%~dp0src\RosterAnalyze.cs" ^
     "%~dp0src\C2sCensus.cs" ^

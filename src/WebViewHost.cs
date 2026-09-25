@@ -78,9 +78,36 @@ namespace WSEngine
                     json, "\"cmd\"\\s*:\\s*\"([^\"]+)\"");
                 if (!cmdMatch.Success) return;
                 string cmd = cmdMatch.Groups[1].Value;
-                var argsMatch = System.Text.RegularExpressions.Regex.Match(
-                    json, "\"args\"\\s*:\\s*(\\{[^}]*\\})");
-                string args = argsMatch.Success ? argsMatch.Groups[1].Value : "{}";
+                // Extração de args: pega o objeto JSON balanceado após "args":.
+                // Regex simples com [^}]* falhava em strings contendo }, e nested
+                // objects. Balanceamento manual sobre a string original.
+                string args = "{}";
+                int aIdx = json.IndexOf("\"args\"");
+                if (aIdx >= 0)
+                {
+                    int colon = json.IndexOf(':', aIdx);
+                    if (colon >= 0)
+                    {
+                        int braceStart = json.IndexOf('{', colon);
+                        if (braceStart >= 0)
+                        {
+                            int depth = 0; bool inStr = false; bool esc = false;
+                            int braceEnd = -1;
+                            for (int i = braceStart; i < json.Length; i++)
+                            {
+                                char c = json[i];
+                                if (esc) { esc = false; continue; }
+                                if (c == '\\') { esc = true; continue; }
+                                if (c == '"') { inStr = !inStr; continue; }
+                                if (inStr) continue;
+                                if (c == '{') depth++;
+                                else if (c == '}') { depth--; if (depth == 0) { braceEnd = i; break; } }
+                            }
+                            if (braceEnd > braceStart)
+                                args = json.Substring(braceStart, braceEnd - braceStart + 1);
+                        }
+                    }
+                }
                 var h = OnCommand;
                 if (h != null) h(cmd, args);
             }
@@ -125,6 +152,16 @@ namespace WSEngine
         {
             // rosterJson is a JSON array of { id, name, guild, classId, classIconFile }.
             Post("{\"type\":\"players\",\"roster\":" + rosterJson + "}");
+        }
+
+        public void PushCaptureList(string itemsJson)
+        {
+            Post("{\"type\":\"capture-list\",\"items\":" + itemsJson + "}");
+        }
+
+        public void PushToast(string level, string text)
+        {
+            Post("{\"type\":\"toast\",\"level\":\"" + JsonEscape(level) + "\",\"text\":\"" + JsonEscape(text) + "\"}");
         }
 
         void Post(string json)

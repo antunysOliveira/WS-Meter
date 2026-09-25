@@ -1,68 +1,88 @@
 // SummonOwnerMap.cs
 //
-// Builds summon_id → owner_id map from tag=26 (0x1a) spawn messages inside
-// LZ4-decompressed tag=492 content.
+// Reads tag=26 (0x1a) entity-spawn bodies and produces:
+//   - Owners map:  summon entity_id → owner player entity_id
+//   - AllSummonEids set: every entity_id whose type_id is a registered summon
+//     (SummonRegistry), regardless of whether the owner field is populated.
 //
-// [LIDO] via static RE (docs/CLIENT-RE-R5.md + spawn26 probes 2026-09-21):
-//   tag=26 wire class ctor FUN_00665310 sets vtable PTR_FUN_00c0ffbc.
-//   Reader FUN_00664d00 body layout (41 bytes for standard spawn):
-//     +0    u16    counter/type
-//     +2    u32    summon_id (mob-range 0x05xxxxxx)
-//     +6    u32    float (size/scale)
-//     +10   12B    two nested sub-objects (vec2 fields)
-//     +22   u16    level? (0x64=100 in samples)
-//     +24   u16    level? (0x64=100 in samples)
-//     +26..34 padding zeros
-//     +35   u32    OWNER entity_id (player-range 0x00xxxxxx)
-//     +39..40 3B  trailing padding
+// [LIDO] static RE (docs/CLIENT-RE-R5.md + spawn26 probes 2026-09-21):
+//   tag=26 wire class reader FUN_00664d00 body layout (41 bytes):
+//     +0     u16    type_id  (key in mob-types.json / SummonRegistry.ByTid)
+//     +2     u32    entity_id
+//     +6     u32    float (size/scale)
+//     +10..21  12B  vec2 fields + level bytes
+//     +22..23  u16  level (0x64=100 typical)
+//     +24..34  padding zeros
+//     +35     u32   owner entity_id (player-range 0x00xxxxxx) or 0 for wild mobs
+//     +39..40 2B    trailing padding
 //
-// [MEDIDO] Confirmed with known pet→owner pairs:
-//   0x05f702b1 → 0x0048042c (Sacrum)
-//   0x05f76589 → 0x00691957 (Marcao)
-//   0x05f66e47 → 0x0048042c (Sacrum's second pet)
-//   0x05f6dcff → 0x0048042c (Sacrum's third pet)
+// [MEDIDO 2026-09-25 - pós update Warspear v13.4.4]
+//   High byte do entity_id mudou de 0x05 para 0x0B em TODOS os spawns
+//   (mobs e invocações). Layout do body ficou idêntico.
+//   Ver docs/PROTOCOL-NOTES.md seção "2026-09-25 entity_id range shift".
+//
+// Filtro anterior "(summonId >> 24) != 0x05" foi removido: classificação de
+// invocação passou a ser feita SOMENTE pela whitelist SummonRegistry (tid),
+// não pelo byte alto do eid. Assim o parser sobrevive à próxima migração de
+// namespace que o servidor fizer.
 
 using System;
 using System.Collections.Generic;
 
 namespace WSEngine
 {
+    internal class SummonMapResult
+    {
+        public Dictionary<uint, uint> Owners = new Dictionary<uint, uint>();
+        public HashSet<uint> AllSummonEids = new HashSet<uint>();
+        // eid → tid — usado pra rotear damage de invocação sem dono pro bucket
+        // correto por classe ("Invocação de Necromante (sem dono)" etc).
+        public Dictionary<uint, int> TidByEid = new Dictionary<uint, int>();
+        // classId → 1 (marcador de presença). Usado pra logar "classe X
+        // presente na área" quando um summon é avistado.
+        public HashSet<int> ClassesPresent = new HashSet<int>();
+    }
+
     internal static class SummonOwnerMap
     {
         const int SpawnTag = 26;
-        const int MinSpawnBodyLen = 39;   // need at least bytes 35..38 = owner u32
+        const int MinSpawnBodyLen = 39;   // need bytes 35..38 = owner u32
+        const int TypeIdOffset   = 0;
         const int SummonIdOffset = 2;
         const int OwnerIdOffset  = 35;
 
-        // Build map from a top-level TlvMessage list. For each tag=492, decompress and walk;
-        // for each nested tag=26 with valid summon+owner ranges, record pair.
+        // Back-compat wrapper — returns just the owners map. New callers should
+        // use BuildResult() to get AllSummonEids for solo-fallback / labeling.
         public static Dictionary<uint, uint> Build(IList<TlvMessage> messages)
         {
-            var map = new Dictionary<uint, uint>();
-            if (messages == null) return map;
+            return BuildResult(messages).Owners;
+        }
+
+        public static SummonMapResult BuildResult(IList<TlvMessage> messages)
+        {
+            var r = new SummonMapResult();
+            if (messages == null) return r;
 
             for (int i = 0; i < messages.Count; i++)
             {
                 var m = messages[i];
                 if (m == null) continue;
 
-                // Top-level tag=26 spawns (rare but supported).
                 if (m.Tag == SpawnTag && m.Body != null && m.Body.Length >= MinSpawnBodyLen)
                 {
-                    AddIfValid(map, m.Body);
+                    AddIfSummon(r, m.Body);
                     continue;
                 }
 
-                // Nested tag=26 inside tag=492 LZ4-compressed content.
                 if (m.Tag == 492 && m.Body != null && m.Body.Length >= 5)
                 {
-                    ScanContainer(m.Body, map);
+                    ScanContainer(m.Body, r);
                 }
             }
-            return map;
+            return r;
         }
 
-        static void ScanContainer(byte[] body, Dictionary<uint, uint> map)
+        static void ScanContainer(byte[] body, SummonMapResult r)
         {
             int pos = 0;
             int N;
@@ -79,18 +99,26 @@ namespace WSEngine
             foreach (var sub in res.Messages)
             {
                 if (sub.Tag == SpawnTag && sub.Body != null && sub.Body.Length >= MinSpawnBodyLen)
-                    AddIfValid(map, sub.Body);
+                    AddIfSummon(r, sub.Body);
             }
         }
 
-        static void AddIfValid(Dictionary<uint, uint> map, byte[] body)
+        static void AddIfSummon(SummonMapResult r, byte[] body)
         {
+            int tid = BitConverter.ToUInt16(body, TypeIdOffset);
+            SummonInfo info = SummonRegistry.Get(tid);
+            if (info == null) return;
+
             uint summonId = BitConverter.ToUInt32(body, SummonIdOffset);
-            uint ownerId  = BitConverter.ToUInt32(body, OwnerIdOffset);
-            // Summon must be mob-range, owner must be player-range.
-            if ((summonId >> 24) != 0x05) return;
+            if (summonId == 0) return;
+            r.AllSummonEids.Add(summonId);
+            r.TidByEid[summonId] = tid;
+            r.ClassesPresent.Add(info.OwnerClassId);
+
+            uint ownerId = BitConverter.ToUInt32(body, OwnerIdOffset);
+            // Owner must be a real player id (0x00xxxxxx, non-trivial).
             if ((ownerId >> 24) != 0x00 || ownerId < 0x00010000) return;
-            if (!map.ContainsKey(summonId)) map[summonId] = ownerId;
+            if (!r.Owners.ContainsKey(summonId)) r.Owners[summonId] = ownerId;
         }
 
         static bool ReadVarint(byte[] b, ref int pos, out int val)

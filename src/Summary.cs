@@ -68,6 +68,11 @@ namespace WSEngine
             // Name resolution: memscan JSON (players seen in game process memory).
             var names = LoadNameMap();
 
+            // Summon eids from tag=26 spawns — used to label attackers/targets
+            // as "(invocação)" when tid ∈ SummonRegistry. Independe do byte alto
+            // do eid: whitelist estrutural sobrevive à migração 0x05 → 0x0B.
+            HashSet<uint> summonEids = SummonOwnerMap.BuildResult(messages).AllSummonEids;
+
             // Duration: last minus first segment time, if we have pcap input with real times.
             double durSec = 0;
             if (segs.Count > 0)
@@ -103,7 +108,7 @@ namespace WSEngine
             {
                 totalDamage += e.Amount;
                 if (e.AttackerId == 0) zeroAtt++;
-                if ((e.AttackerId >> 24) == 0x05) petAtt++;
+                if (summonEids.Contains(e.AttackerId)) petAtt++;
                 AttStats a;
                 if (!byAtt.TryGetValue(e.AttackerId, out a)) { a = new AttStats(); byAtt[e.AttackerId] = a; }
                 a.Total += e.Amount;
@@ -129,7 +134,7 @@ namespace WSEngine
                 var e = events[i];
                 string attHex = "0x" + e.AttackerId.ToString("x8");
                 string tgtHex = "0x" + e.TargetId.ToString("x8");
-                string nm = LookupName(names, e.AttackerId);
+                string nm = LookupName(names, e.AttackerId, summonEids);
                 sb.AppendLine("| " + (i + 1) + " | " + e.Time.ToString("F3") + " | " + attHex + " | " + nm + " | " + tgtHex + " | " + e.Amount + " | 0x" + e.Flag.ToString("x2") + " |");
             }
             sb.AppendLine();
@@ -142,7 +147,7 @@ namespace WSEngine
             foreach (var kv in byAtt.OrderByDescending(x => x.Value.Total))
             {
                 string attHex = "0x" + kv.Key.ToString("x8");
-                string nm = LookupName(names, kv.Key);
+                string nm = LookupName(names, kv.Key, summonEids);
                 sb.AppendLine("| " + attHex + " | " + nm + " | " + kv.Value.Total.ToString("N0") + " | " + kv.Value.Hits + " | " + kv.Value.Max + " |");
             }
             sb.AppendLine();
@@ -155,7 +160,7 @@ namespace WSEngine
             foreach (var kv in byTgt.OrderByDescending(x => x.Value.Received))
             {
                 string tgtHex = "0x" + kv.Key.ToString("x8");
-                string nm = LookupName(names, kv.Key);
+                string nm = LookupName(names, kv.Key, summonEids);
                 sb.AppendLine("| " + tgtHex + " | " + nm + " | " + kv.Value.Received.ToString("N0") + " | " + kv.Value.Hits + " |");
             }
             sb.AppendLine();
@@ -164,7 +169,7 @@ namespace WSEngine
             sb.AppendLine("## Unresolved");
             sb.AppendLine();
             sb.AppendLine("- attacker=0 events: " + zeroAtt);
-            sb.AppendLine("- Attackers in 0x05 range (likely pets, owner not linked here — see MainForm summon scan): " + petAtt);
+            sb.AppendLine("- Attackers reconhecidos como invocação (tid ∈ SummonRegistry — owner não é reescrito neste CLI): " + petAtt);
             sb.AppendLine("- Coverage: top-level tag=427 (13B body, u32 dmg) + nested `ab 03 0d`+u16 byte-scan inside tag=492 bodies (Fase 8A). Nested damage without Format B attribution shows attacker=0.");
 
             string outPath = inputPath + ".summary.md";
@@ -197,14 +202,17 @@ namespace WSEngine
             return map;
         }
 
-        static string LookupName(Dictionary<uint, string> map, uint id)
+        static string LookupName(Dictionary<uint, string> map, uint id, HashSet<uint> summonEids)
         {
             if (id == 0) return "(unresolved)";
             string nm;
             if (map.TryGetValue(id, out nm) && !string.IsNullOrEmpty(nm)) return nm;
+            // Label "(invocação)" só se o eid veio de um spawn com tid ∈
+            // SummonRegistry. Não usar byte alto — quebra a cada mudança de
+            // namespace do servidor. Ver docs/PROTOCOL-NOTES.md.
+            if (summonEids != null && summonEids.Contains(id)) return "(invocação)";
             uint hi = id >> 24;
             if (hi == 0x00) return "";
-            if (hi == 0x05) return "(pet/mob)";
             return "(mob)";
         }
     }

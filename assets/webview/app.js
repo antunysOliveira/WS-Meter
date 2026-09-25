@@ -24,9 +24,201 @@ if (window.chrome && window.chrome.webview) {
             case 'capture':     setCaptureState(msg.state); break;
             case 'area':        setAreaCount(msg); break;
             case 'players':     renderPlayers(msg.roster); break;
+            case 'capture-list': renderCaptureList(msg.items); break;
+            case 'toast':        showToast(msg.level, msg.text); break;
         }
     });
 }
+
+// ---------- Task 4: hamburger + capture history ----------
+function showToast(level, text) {
+    var el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'toast toast-' + (level || 'info');
+    setTimeout(function () { el.classList.add('hidden'); }, 3500);
+}
+
+function openHamburgerMenu() {
+    var m = document.getElementById('hamburger-menu');
+    if (m) m.classList.remove('hidden');
+}
+function closeHamburgerMenu() {
+    var m = document.getElementById('hamburger-menu');
+    if (m) m.classList.add('hidden');
+}
+function openCaptureHistory() {
+    closeHamburgerMenu();
+    var ov = document.getElementById('capture-history-overlay');
+    if (ov) ov.classList.remove('hidden');
+    sendCmd('capture-list');
+}
+function closeCaptureHistory() {
+    var ov = document.getElementById('capture-history-overlay');
+    if (ov) ov.classList.add('hidden');
+}
+
+function fmtBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    if (n < 1024 * 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + ' MB';
+    return (n / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+}
+function fmtDate(iso) {
+    if (!iso) return '--';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mm = String(d.getMinutes()).padStart(2, '0');
+    return y + '-' + m + '-' + day + ' ' + hh + ':' + mm;
+}
+
+function renderCaptureList(items) {
+    var tbody = document.getElementById('ch-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!items || items.length === 0) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="5" style="text-align:center;padding:24px;color:#808080;">Nenhuma captura encontrada.</td>';
+        tbody.appendChild(tr);
+        return;
+    }
+    for (var i = 0; i < items.length; i++) {
+        tbody.appendChild(buildCaptureRow(items[i]));
+    }
+}
+
+function buildCaptureRow(it) {
+    var tr = document.createElement('tr');
+    if (!it.available) tr.classList.add('unavailable');
+    if (it.active) tr.classList.add('active-cap');
+
+    // Name cell (editable) + note (editable, small)
+    var tdName = document.createElement('td');
+    tdName.className = 'col-ch-name';
+    var inpName = document.createElement('input');
+    inpName.type = 'text';
+    inpName.className = 'ch-name-input';
+    inpName.placeholder = 'Sem nome — usar data/hora';
+    inpName.value = it.name || '';
+    var inpNote = document.createElement('input');
+    inpNote.type = 'text';
+    inpNote.className = 'ch-note-input';
+    inpNote.placeholder = 'Observação (quem, classe, o quê)';
+    inpNote.value = it.note || '';
+    tdName.appendChild(inpName);
+    tdName.appendChild(inpNote);
+    if (it.active) {
+        var badge = document.createElement('span');
+        badge.className = 'ch-active-badge';
+        badge.textContent = 'AO VIVO';
+        tdName.appendChild(badge);
+    }
+    tr.appendChild(tdName);
+
+    // File
+    var tdFile = document.createElement('td');
+    tdFile.className = 'col-ch-file';
+    tdFile.textContent = it.fileName;
+    if (!it.available) tdFile.title = 'Arquivo não encontrado — meta.json órfã';
+    tr.appendChild(tdFile);
+
+    // Date
+    var tdDate = document.createElement('td');
+    tdDate.className = 'col-ch-date';
+    tdDate.textContent = fmtDate(it.createdAt);
+    tr.appendChild(tdDate);
+
+    // Size
+    var tdSize = document.createElement('td');
+    tdSize.className = 'col-ch-size';
+    tdSize.textContent = it.sizeBytes > 0 ? fmtBytes(it.sizeBytes) : '--';
+    tr.appendChild(tdSize);
+
+    // Actions
+    var tdAct = document.createElement('td');
+    tdAct.className = 'col-ch-actions';
+
+    var btnSave = document.createElement('button');
+    btnSave.className = 'ch-actions-btn';
+    btnSave.textContent = 'Salvar';
+    btnSave.title = 'Salvar nome + observação (não renomeia o arquivo)';
+    btnSave.disabled = !it.available && it.name === inpName.value && it.note === inpNote.value;
+    btnSave.onclick = function () {
+        sendCmd('capture-set-meta', { path: it.path, name: inpName.value, note: inpNote.value });
+    };
+    tdAct.appendChild(btnSave);
+
+    var btnRename = document.createElement('button');
+    btnRename.className = 'ch-actions-btn';
+    btnRename.textContent = 'Renomear arquivo';
+    btnRename.title = it.active
+        ? 'Não é possível renomear a captura ativa. Pare a captura primeiro.'
+        : 'Renomear o arquivo .pcapng no disco (nome atual: ' + it.fileName + ')';
+    btnRename.disabled = !it.available || it.active;
+    btnRename.onclick = function () {
+        var suggest = (inpName.value || '').trim() || it.fileName.replace(/\.pcapng$/i, '');
+        var nb = window.prompt('Novo nome de arquivo (extensão .pcapng adicionada automaticamente):', suggest);
+        if (!nb) return;
+        sendCmd('capture-rename-file', { path: it.path, newBaseName: nb });
+    };
+    tdAct.appendChild(btnRename);
+
+    var btnOpen = document.createElement('button');
+    btnOpen.className = 'ch-actions-btn';
+    btnOpen.textContent = 'Abrir na pasta';
+    btnOpen.disabled = !it.available;
+    btnOpen.onclick = function () {
+        sendCmd('capture-open-in-folder', { path: it.path });
+    };
+    tdAct.appendChild(btnOpen);
+
+    tr.appendChild(tdAct);
+    return tr;
+}
+
+// Wire up UI events on DOM ready
+document.addEventListener('DOMContentLoaded', function () {
+    var btnH = document.getElementById('btn-hamburger');
+    if (btnH) btnH.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var m = document.getElementById('hamburger-menu');
+        if (m.classList.contains('hidden')) openHamburgerMenu();
+        else closeHamburgerMenu();
+    });
+    document.addEventListener('click', function (ev) {
+        var m = document.getElementById('hamburger-menu');
+        if (m && !m.classList.contains('hidden')) {
+            if (!m.contains(ev.target)) closeHamburgerMenu();
+        }
+    });
+    var menu = document.getElementById('hamburger-menu');
+    if (menu) menu.addEventListener('click', function (ev) {
+        var it = ev.target.closest('.menu-item');
+        if (!it) return;
+        var action = it.getAttribute('data-action');
+        if (action === 'capture-history') openCaptureHistory();
+    });
+    var btnClose = document.getElementById('ch-close');
+    if (btnClose) btnClose.addEventListener('click', closeCaptureHistory);
+    var btnRefresh = document.getElementById('ch-refresh');
+    if (btnRefresh) btnRefresh.addEventListener('click', function () { sendCmd('capture-list'); });
+    var btnOpen = document.getElementById('ch-open-folder');
+    if (btnOpen) btnOpen.addEventListener('click', function () { sendCmd('capture-open-folder'); });
+    var overlay = document.getElementById('capture-history-overlay');
+    if (overlay) overlay.addEventListener('click', function (ev) {
+        if (ev.target === overlay) closeCaptureHistory();
+    });
+    document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape') {
+            closeCaptureHistory();
+            closeHamburgerMenu();
+        }
+    });
+});
 
 // ---------- Formatting ----------
 function fmtNumber(n) {

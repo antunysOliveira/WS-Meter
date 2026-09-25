@@ -103,6 +103,13 @@ namespace WSEngine
                     AttachConsole(ATTACH_PARENT_PROCESS);
                     return Summary.Run(args[i + 1]);
                 }
+                if (i + 1 < args.Length && args[i] == "--nick-audit")
+                {
+                    AttachConsole(ATTACH_PARENT_PROCESS);
+                    string ip = "152.233.19.169";
+                    if (i + 2 < args.Length && !args[i + 2].StartsWith("--")) ip = args[i + 2];
+                    return NickAudit.Run(args[i + 1], ip);
+                }
                 if (i + 1 < args.Length && args[i] == "--area-count")
                 {
                     AttachConsole(ATTACH_PARENT_PROCESS);
@@ -658,6 +665,20 @@ namespace WSEngine
         List<ExtractedString> curStrings = new List<ExtractedString>();
         List<TcpSegment> curSegs = new List<TcpSegment>();
         Dictionary<uint, string> nameMap = new Dictionary<uint, string>();
+        // Rastro da fonte que gravou o nome atual em nameMap (por id). Usado
+        // pra aplicar precedência: memscan > tag207 > tag551 > tag554 > tag65
+        // > bytescan492. Ver EnrollName().
+        Dictionary<uint, string> nameOrigin = new Dictionary<uint, string>();
+        // Entradas de baixa/média confiança (byte-scan tag=492 + tag=65 sender)
+        // esperam evidência estrutural de que o id existe (event ids desta
+        // sessão). TTL 10 min + cap 200. Ver NameEnroller.
+        class PendingName { public string Name; public string Origin; public DateTime AddedAt; }
+        Dictionary<uint, PendingName> namePending = new Dictionary<uint, PendingName>();
+        // Ids que apareceram em evento estrutural na sessão (damage/heal/spawn
+        // /buff/area-enter). Base do gating.
+        HashSet<uint> eventIds = new HashSet<uint>();
+        static readonly TimeSpan PendingNameTtl = TimeSpan.FromMinutes(10);
+        const int PendingNameCap = 200;
         Dictionary<uint, string> customNames = new Dictionary<uint, string>();
         Dictionary<uint, string> autoNameCache = new Dictionary<uint, string>();
         Dictionary<uint, double> curNameLastSeen = new Dictionary<uint, double>();
@@ -1103,40 +1124,83 @@ namespace WSEngine
                 // shows up in tag=427 (damage), tag=99 (heal), or tag=25 body=5B
                 // ENTER. Combat participants get priority 10; ENTER gets 5.
                 try { ScanFramesForClassResolveTriggers(curFrames); } catch { }
-                // Merge fresh packet-scanned names into the persistent nameMap
-                // instead of replacing it. Replacing dropped entries whenever the
-                // heuristic parser missed a segment on the current poll, causing
-                // the leaderboard to flicker back to 0xHEX for known players.
+
+                // [Task 3 / Fase A] Name enrollment pipeline reformulado:
+                // - byte-scan flat sobre concat de payloads REMOVIDO (era fonte
+                //   principal de falso positivo em chat + tag=65 duplicate-id).
+                // - byte-scan agora restrito a bodies descomprimidos de tag=492
+                //   (onde reside roster real via literais LZ4).
+                // - tag=65 chat sender vai por caminho gated (só grava se id
+                //   também apareceu em evento estrutural nesta sessão).
+                // - Fontes estruturais (tag551/554/207) auto-commitam via
+                //   CommitName, respeitando precedência.
+                // - Pending em memória + TTL 10 min + cap 200 pra ids que
+                //   ainda não têm evidência estrutural.
+
+                // 1. Pre-scan de event ids (damage/heal/spawn/area-enter) —
+                //    base do gating.
+                PurgeExpiredPending();
                 try
                 {
-                    Dictionary<uint, string> freshNames;
-                    Dictionary<uint, double> freshLastSeen;
-                    ExtractPlayerNamesTimed(curSegs, out freshNames, out freshLastSeen);
-                    if (freshNames != null)
-                        foreach (var kv in freshNames)
-                            if (!string.IsNullOrEmpty(kv.Value)) nameMap[kv.Key] = kv.Value;
-                    if (freshLastSeen != null)
-                    {
-                        if (curNameLastSeen == null) curNameLastSeen = new Dictionary<uint, double>();
-                        foreach (var kv in freshLastSeen) curNameLastSeen[kv.Key] = kv.Value;
-                    }
+                    var precombat = ExtractCombat(curFrames);
+                    foreach (var e in precombat) { NotifyEventId(e.Attacker); NotifyEventId(e.Target); }
                 }
                 catch { }
-                try { ExtractChatSenders(curFrames, nameMap); } catch { }
-                // Priority [user 2026-09-22]:
-                //   554 = 551 > 207 > SQLite seed > memscan/PlayerResolver
-                // Protocol sources ALWAYS overwrite lower-confidence caches.
-                // memscan / PlayerResolver only fill gaps (see LoadJsonClassesInto
-                // and ResolveWorkerLoop — both guarded on !ContainsKey).
-                try { Tag551Decoder.Extract(curFrames, nameMap, playerClassId); } catch { }
                 try
                 {
-                    var t554Class = new Dictionary<uint, byte>();
-                    Tag554Decoder.Extract(curFrames, nameMap, t554Class, null);
-                    foreach (var kv in t554Class)
-                        playerClassId[kv.Key] = kv.Value;   // overwrite — tag=554 is authoritative
+                    var preheal = ExtractHeals(curFrames);
+                    foreach (var h in preheal) { NotifyEventId(h.SourceId); NotifyEventId(h.TargetId); }
                 }
                 catch { }
+                try
+                {
+                    var sm = SummonOwnerMap.BuildResult(curFrames);
+                    foreach (var eid in sm.AllSummonEids) NotifyEventId(eid);
+                    foreach (var kv in sm.Owners) NotifyEventId(kv.Value);
+                }
+                catch { }
+                if (areaSnap != null)
+                {
+                    foreach (var ae in areaSnap.Entities) NotifyEventId(ae.EntityId);
+                }
+
+                // 2. Estruturais — precedência memscan > tag207 > tag551 > tag554.
+                //    Comitam direto (sem gating) porque fonte já é confiável.
+                try
+                {
+                    var t551 = new Dictionary<uint, string>();
+                    var pc551 = new Dictionary<uint, int>();
+                    Tag551Decoder.Extract(curFrames, t551, pc551);
+                    foreach (var kv in t551) CommitName(kv.Key, kv.Value, "tag551");
+                    foreach (var kv in pc551) if (!playerClassId.ContainsKey(kv.Key)) playerClassId[kv.Key] = kv.Value;
+                }
+                catch { }
+                try
+                {
+                    var t554 = new Dictionary<uint, string>();
+                    var pc554 = new Dictionary<uint, byte>();
+                    Tag554Decoder.Extract(curFrames, t554, pc554, null);
+                    foreach (var kv in t554) CommitName(kv.Key, kv.Value, "tag554");
+                    foreach (var kv in pc554) playerClassId[kv.Key] = kv.Value;   // tag=554 é autoritativo pra classe
+                }
+                catch { }
+
+                // 3. tag=65 chat sender — GATED. Só grava se sender_id já
+                //    existe em eventIds; caso contrário fica em pending.
+                try
+                {
+                    var chat = new Dictionary<uint, string>();
+                    ExtractChatSenders(curFrames, chat);
+                    foreach (var kv in chat) EnrollName(kv.Key, kv.Value, "tag65");
+                }
+                catch { }
+
+                // [Task 3 Fase B] Byte-scan tag=492 removido do pipeline live.
+                // Probe _probe-name-inner-tag.ps1 confirmou: 100% dos hits em
+                // tag=492 caem em tag=65 chat nested — agora coberto pelo
+                // ExtractChatSenders acima (que também walks tag=492 LZ4 inner).
+                // ExtractNamesFromContainer492 kept em src pra audit CLI
+                // (--nick-audit) mas não é mais chamado no pipeline vivo.
                 // tag=10 (player-class broadcast) — [MEDIDO 7/7 vs tag=554 in
                 // ws_20260920_212612]. Fires per-player on visibility. Body 12B
                 // with entity_id at +0 and class at +4. Volume: 380 hits inner /
@@ -1154,13 +1218,10 @@ namespace WSEngine
                 // tag=207 (per-player update; UTF-16LE name + level + classId) — secondary source.
                 try
                 {
+                    var t207Names = new Dictionary<uint, string>();
                     var t207Class = new Dictionary<uint, byte>();
-                    Tag207Decoder.Extract(curFrames, nameMap, t207Class);
-                    // tag=207 is secondary but still protocol — overwrite memscan/resolver
-                    // but do NOT clobber a value already set by tag=554/551 in this same
-                    // poll (we approximate that by checking a specific "protocol source
-                    // was 554" flag — deferred; for now 207 overwrites too since a wrong
-                    // 207 is at least fresher than a stale memscan snapshot).
+                    Tag207Decoder.Extract(curFrames, t207Names, t207Class);
+                    foreach (var kv in t207Names) CommitName(kv.Key, kv.Value, "tag207");
                     foreach (var kv in t207Class) playerClassId[kv.Key] = kv.Value;
                 }
                 catch { }
@@ -1588,6 +1649,14 @@ namespace WSEngine
         string NameFor(uint id)
         {
             if (id == 0) return "?";
+            // Synthetic id do bucket "invocação sem dono (classe X)".
+            int synthClass;
+            if (IsUnownedSummonSynthetic(id, out synthClass))
+            {
+                string cname = GameData.ClassName(synthClass);
+                if (string.IsNullOrEmpty(cname)) cname = "classe " + synthClass;
+                return "⚑ Invocação sem dono (" + cname + ")";
+            }
             string cust;
             // 1. User-set nicknames (100% trusted)
             if (customNames != null && customNames.TryGetValue(id, out cust) && !string.IsNullOrEmpty(cust)) return NameOnly(id,cust);
@@ -1640,6 +1709,113 @@ namespace WSEngine
             new System.Collections.Generic.Dictionary<uint, DateTime>();
         readonly System.Collections.Generic.Dictionary<uint, TimeSpan> _classLatencyThisBout =
             new System.Collections.Generic.Dictionary<uint, TimeSpan>();
+
+        // Classes de invocador já logadas neste bout — evita spam no debug
+        // log. Reset a cada StartNewBout via ResetSummonPresence().
+        readonly HashSet<int> _summonClassPresenceSeen = new HashSet<int>();
+
+        // Synthetic id namespace pra bucket "invocação sem dono (classe X)"
+        // no leaderboard. Alto byte 0xFE reservado — não colide com player
+        // (0x00) nem mob (0x05/0x0B/etc). Baixo byte = classId (1..20).
+        const uint UnownedSummonIdBase = 0xFE000000;
+
+        static uint UnownedSummonSyntheticId(int classId)
+        {
+            return UnownedSummonIdBase | (uint)(classId & 0xFF);
+        }
+
+        static bool IsUnownedSummonSynthetic(uint id, out int classId)
+        {
+            classId = (int)(id & 0xFF);
+            return (id & 0xFFFFFF00u) == UnownedSummonIdBase;
+        }
+
+        // Precedência de fontes de nome. Higher wins. Aplicada em EnrollName.
+        // Ver Task 3 / PROTOCOL-NOTES.md.
+        public static int OriginPriority(string origin)
+        {
+            if (origin == null) return 0;
+            switch (origin)
+            {
+                case "memscan":     return 100;
+                case "tag207":     return 80;
+                case "tag551":     return 60;
+                case "tag554":     return 55;
+                case "tag65":       return 30;
+                case "bytescan492": return 10;
+                default:            return 0;
+            }
+        }
+
+        // Registra id em evento estrutural. Promove pending → nameMap se
+        // houver entrada pendente pra esse id.
+        void NotifyEventId(uint id)
+        {
+            if (id == 0) return;
+            if (!eventIds.Add(id)) return;   // já contabilizado
+            PendingName p;
+            if (namePending.TryGetValue(id, out p))
+            {
+                namePending.Remove(id);
+                CommitName(id, p.Name, p.Origin);
+            }
+        }
+
+        // Escreve nome respeitando precedência. Se id já existe em eventIds,
+        // commita direto. Caso contrário, mantém em pending até evidência
+        // estrutural aparecer.
+        void EnrollName(uint id, string name, string origin)
+        {
+            if (id == 0 || string.IsNullOrEmpty(name)) return;
+            if (eventIds.Contains(id)) { CommitName(id, name, origin); return; }
+            // Sem evento — pending. Respeita cap.
+            if (namePending.Count >= PendingNameCap && !namePending.ContainsKey(id)) return;
+            PendingName existing;
+            if (namePending.TryGetValue(id, out existing))
+            {
+                if (OriginPriority(origin) < OriginPriority(existing.Origin)) return;
+            }
+            namePending[id] = new PendingName { Name = name, Origin = origin, AddedAt = DateTime.UtcNow };
+        }
+
+        // Commit direto para nameMap com regra de precedência + log de conflito
+        // quando fontes divergem no mesmo id.
+        void CommitName(uint id, string name, string origin)
+        {
+            string prevName; string prevOrigin;
+            bool hadName = nameMap.TryGetValue(id, out prevName);
+            nameOrigin.TryGetValue(id, out prevOrigin);
+            if (hadName && !string.Equals(prevName, name, StringComparison.Ordinal))
+            {
+                if (OriginPriority(origin) < OriginPriority(prevOrigin ?? "")) return;
+                AppendLog("[nick-conflict] id=0x" + id.ToString("x8")
+                    + "  " + (prevOrigin ?? "?") + "=\"" + prevName + "\" -> "
+                    + origin + "=\"" + name + "\"");
+            }
+            else if (hadName && OriginPriority(origin) < OriginPriority(prevOrigin ?? ""))
+            {
+                return;   // mesmo nome mas fonte mais fraca — não sobrescreve origem
+            }
+            nameMap[id] = name;
+            nameOrigin[id] = origin;
+        }
+
+        // Remove pending expirado (TTL). Chamado uma vez por LivePoll.
+        void PurgeExpiredPending()
+        {
+            if (namePending.Count == 0) return;
+            var now = DateTime.UtcNow;
+            List<uint> toDrop = null;
+            foreach (var kv in namePending)
+            {
+                if (now - kv.Value.AddedAt > PendingNameTtl)
+                {
+                    if (toDrop == null) toDrop = new List<uint>();
+                    toDrop.Add(kv.Key);
+                }
+            }
+            if (toDrop != null) foreach (var id in toDrop) namePending.Remove(id);
+        }
 
         void ResolveClassOnly(uint id) { EnqueueResolve(id, priority: 1); }
         void ResolveClassHighPriority(uint id) { EnqueueResolve(id, priority: 10); }
@@ -2351,7 +2527,10 @@ namespace WSEngine
             switch (hi)
             {
                 case 0x03: case 0x04: case 0x05: case 0x07:
-                case 0x09: case 0x0C: case 0x10: case 0x57:
+                case 0x09: case 0x0B: case 0x0C: case 0x10: case 0x57:
+                    // 0x0B adicionado 2026-09-25 — pós update Warspear v13.4.4
+                    // servidor migrou o namespace de mob de 0x05 para 0x0B.
+                    // Ver docs/PROTOCOL-NOTES.md.
                     return "mob";
                 case 0x00:
                     // User feedback (2026-09-22): mob count is right but player
@@ -2402,6 +2581,10 @@ namespace WSEngine
             LogClassResolutionMetric();
             _firstSeenInBout.Clear();
             _classLatencyThisBout.Clear();
+            _summonClassPresenceSeen.Clear();
+            // Task 3: eventIds are per-session (accumulate ao longo da captura),
+            // não zeram por bout — um nick não deve desaparecer só porque bout
+            // resetou. Idem pending. Não mexer aqui.
 
             ResetDamageCounter();
             fightBoutStart = DateTime.UtcNow;
@@ -2445,6 +2628,86 @@ namespace WSEngine
             public bool Crit;
             public uint Attacker;
             public uint Target;
+        }
+
+        // ExtractNamesFromContainer492:
+        // Restringe o byte-scan pattern-A aos bodies descomprimidos do tag=492.
+        // Warspear empacota roster/scoreboard/etc em containers LZ4 com literais
+        // que preservam nomes ASCII + entity ids. Substitui o antigo scan
+        // flat sobre o concat de payloads (que casava dentro de qualquer tag,
+        // incluindo tag=65 chat e produzia noise em ids duplicados).
+        //
+        // Retorna candidatos: id → (name, whichSide). whichSide informa qual
+        // lado do padrão foi aceito ("before" ou "after"). Chamador aplica
+        // gating por evento (ver EnrollName + NotifyEventId).
+        public class NameCandidate
+        {
+            public uint Id;
+            public string Name;
+            public bool IdBeforeName;   // true = id vinha ANTES do [len][name], false = DEPOIS
+            public uint OtherSideId;    // id da outra beira (também warspear-shaped), 0 se ausente
+        }
+
+        public static List<NameCandidate> ExtractNamesFromContainer492(IList<TlvMessage> msgs)
+        {
+            var list = new List<NameCandidate>();
+            if (msgs == null) return list;
+            foreach (var m in msgs)
+            {
+                if (m == null || m.ClientToServer || m.Tag != 492 || m.Body == null || m.Body.Length < 5) continue;
+                int pos = 0; int N;
+                if (!ReadVarintStatic(m.Body, ref pos, out N)) continue;
+                if (N < 0 || pos + N + 4 != m.Body.Length) continue;
+                uint expected = BitConverter.ToUInt32(m.Body, pos + N);
+                if (expected > 10 * 1024 * 1024) continue;
+                byte[] dec;
+                try { dec = Lz4.DecompressBlock(m.Body, pos, N, (int)expected); } catch { continue; }
+                ScanBufferForNames(dec, list);
+            }
+            return list;
+        }
+
+        static bool ReadVarintStatic(byte[] b, ref int pos, out int val)
+        {
+            val = 0; int shift = 0;
+            for (int i = 0; i < 5; i++)
+            {
+                if (pos >= b.Length) return false;
+                byte x = b[pos++];
+                val |= (x & 0x7f) << shift;
+                if ((x & 0x80) == 0) return true;
+                shift += 7;
+            }
+            return false;
+        }
+
+        static void ScanBufferForNames(byte[] buf, List<NameCandidate> outList)
+        {
+            for (int i = 4; i + 5 < buf.Length; i++)
+            {
+                byte len = buf[i];
+                if (len < 3 || len > 20) continue;
+                if (i + 1 + len + 4 > buf.Length) continue;
+                byte first = buf[i + 1];
+                if (!((first >= 'A' && first <= 'Z') || (first >= 'a' && first <= 'z'))) continue;
+                bool ok = true; int alpha = 0;
+                for (int k = 0; k < len; k++)
+                {
+                    byte b = buf[i + 1 + k];
+                    if (b < 0x20 || b > 0x7E) { ok = false; break; }
+                    if ((b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) alpha++;
+                }
+                if (!ok) continue;
+                if (alpha < Math.Max(3, len - 3)) continue;
+                uint idAfter = BitConverter.ToUInt32(buf, i + 1 + len);
+                uint idBefore = BitConverter.ToUInt32(buf, i - 4);
+                bool ba = IsWarspearId(idBefore) && (idBefore >> 24) == 0;
+                bool aa = IsWarspearId(idAfter)  && (idAfter  >> 24) == 0;
+                if (!ba && !aa) continue;
+                string name = Encoding.ASCII.GetString(buf, i + 1, len);
+                if (ba) outList.Add(new NameCandidate { Id = idBefore, Name = name, IdBeforeName = true, OtherSideId = aa ? idAfter : 0u });
+                if (aa) outList.Add(new NameCandidate { Id = idAfter,  Name = name, IdBeforeName = false, OtherSideId = ba ? idBefore : 0u });
+            }
         }
 
         public static void ExtractPlayerNamesTimed(List<TcpSegment> segs, out Dictionary<uint, string> names, out Dictionary<uint, double> lastSeen)
@@ -2541,31 +2804,57 @@ namespace WSEngine
 
         // Fase 8C: extract chat sender name+id from tag=65 messages.
         // Body layout: [3B header][sender_id u32 LE][name_len u8][name ASCII][msg utf16][null]
+        //
+        // [Task 3 Fase B, 2026-09-25] Também percorre tag=65 nested dentro de
+        // tag=492 LZ4 (fase B do plano). Probe _probe-name-inner-tag.ps1
+        // confirmou 100% dos byte-scan hits em tag=492 caem em tag=65 chat
+        // nested — não existe roster estrutural separado dentro de tag=492
+        // nas capturas testadas. Byte-scan pattern-A vira redundante.
         public static void ExtractChatSenders(List<TlvMessage> msgs, Dictionary<uint, string> names)
         {
             if (msgs == null || names == null) return;
             foreach (var m in msgs)
             {
-                if (m == null || m.Tag != 65 || m.Body == null || m.Body.Length < 9) continue;
-                uint id = BitConverter.ToUInt32(m.Body, 3);
-                if ((id >> 24) != 0 || id < 0x00010000) continue;
-                byte nlen = m.Body[7];
-                if (nlen < 3 || nlen > 15) continue;
-                if (8 + nlen > m.Body.Length) continue;
-                bool ok = true;
-                int alpha = 0;
-                for (int k = 0; k < nlen; k++)
+                if (m == null || m.Body == null || m.ClientToServer) continue;
+                if (m.Tag == 65) TryExtractChatBody(m.Body, names);
+                if (m.Tag == 492 && m.Body.Length >= 5)
                 {
-                    byte b = m.Body[8 + k];
-                    if (b < 0x20 || b > 0x7E) { ok = false; break; }
-                    if ((b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) alpha++;
+                    int pos = 0; int N;
+                    if (!ReadVarintStatic(m.Body, ref pos, out N)) continue;
+                    if (N < 0 || pos + N + 4 != m.Body.Length) continue;
+                    uint expected = BitConverter.ToUInt32(m.Body, pos + N);
+                    if (expected > 10 * 1024 * 1024) continue;
+                    byte[] dec;
+                    try { dec = Lz4.DecompressBlock(m.Body, pos, N, (int)expected); } catch { continue; }
+                    var seg = new TcpSegment { Time = m.Time, ClientToServer = false, Seq = 0, Payload = dec };
+                    var res = TlvSplit.Parse(new List<TcpSegment> { seg });
+                    foreach (var sub in res.Messages)
+                        if (sub != null && sub.Tag == 65 && sub.Body != null) TryExtractChatBody(sub.Body, names);
                 }
-                if (!ok || alpha < Math.Max(3, nlen - 3)) continue;
-                byte first = m.Body[8];
-                if (!((first >= 'A' && first <= 'Z') || (first >= 'a' && first <= 'z'))) continue;
-                string name = Encoding.ASCII.GetString(m.Body, 8, nlen);
-                names[id] = name;
             }
+        }
+
+        static void TryExtractChatBody(byte[] body, Dictionary<uint, string> names)
+        {
+            if (body == null || body.Length < 9) return;
+            uint id = BitConverter.ToUInt32(body, 3);
+            if ((id >> 24) != 0 || id < 0x00010000) return;
+            byte nlen = body[7];
+            if (nlen < 3 || nlen > 15) return;
+            if (8 + nlen > body.Length) return;
+            bool ok = true;
+            int alpha = 0;
+            for (int k = 0; k < nlen; k++)
+            {
+                byte b = body[8 + k];
+                if (b < 0x20 || b > 0x7E) { ok = false; break; }
+                if ((b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) alpha++;
+            }
+            if (!ok || alpha < Math.Max(3, nlen - 3)) return;
+            byte first = body[8];
+            if (!((first >= 'A' && first <= 'Z') || (first >= 'a' && first <= 'z'))) return;
+            string name = Encoding.ASCII.GetString(body, 8, nlen);
+            names[id] = name;
         }
 
         public static Dictionary<uint, string> ExtractPlayerNames(List<TcpSegment> segs)
@@ -2632,7 +2921,8 @@ namespace WSEngine
         {
             var events = new List<HealEventLive>();
             if (messages == null) return events;
-            Dictionary<uint, uint> summonOwner = SummonOwnerMap.Build(messages);
+            SummonMapResult sm = SummonOwnerMap.BuildResult(messages);
+            Dictionary<uint, uint> summonOwner = sm.Owners;
             var decoder = new Tag99HealDecoder();
             decoder.OnHeal += h =>
             {
@@ -2658,7 +2948,24 @@ namespace WSEngine
             if (messages == null) return events;
             // Pet → owner map from tag=26 spawn frames (in decompressed tag=492 content).
             // Reader layout confirmed by static RE (docs/CLIENT-RE-R5.md, src/SummonOwnerMap.cs).
-            Dictionary<uint, uint> summonOwner = SummonOwnerMap.Build(messages);
+            SummonMapResult sm = SummonOwnerMap.BuildResult(messages);
+            Dictionary<uint, uint> summonOwner = sm.Owners;
+            HashSet<uint> knownSummonEids = sm.AllSummonEids;
+            Dictionary<uint, int> tidByEid = sm.TidByEid;
+
+            // T1 — presença de classe de invocador. Loga uma vez por classe por
+            // bout no debug feed, útil pra saber que Necromante/Charmer estão
+            // invocando mesmo antes do dono ser identificado.
+            foreach (int classId in sm.ClassesPresent)
+            {
+                if (_summonClassPresenceSeen.Add(classId))
+                {
+                    string cname = GameData.ClassName(classId);
+                    if (string.IsNullOrEmpty(cname)) cname = "classe " + classId;
+                    AppendLog("[invocação] classe presente na área: " + cname);
+                }
+            }
+
             var decoder = new TlvDamageDecoderV3();
             // Pass 1: collect all distinct player attacker IDs (0x00xxxxxx range) seen.
             // Used for solo-scenario pet owner fallback below.
@@ -2686,7 +2993,21 @@ namespace WSEngine
                 {
                     uint owner;
                     if (summonOwner.TryGetValue(atk, out owner) && owner != 0) atk = owner;
-                    else if ((atk >> 24) == 0x05 && soloOwner != 0) atk = soloOwner;  // solo-scenario pet fallback
+                    // Solo-scenario fallback: só aplicar a EIDs que o SummonOwnerMap
+                    // reconheceu como invocação (tid ∈ SummonRegistry). Nunca aplicar
+                    // por range de byte alto — mob normal cairia no bucket do jogador.
+                    else if (soloOwner != 0 && knownSummonEids.Contains(atk)) atk = soloOwner;
+                    // T1 — invocação sem dono conhecido: acumula em bucket
+                    // sintético por classe. Nunca cai no bucket de mob.
+                    else if (knownSummonEids.Contains(atk))
+                    {
+                        int tid;
+                        if (tidByEid.TryGetValue(atk, out tid))
+                        {
+                            var info = SummonRegistry.Get(tid);
+                            if (info != null) atk = UnownedSummonSyntheticId(info.OwnerClassId);
+                        }
+                    }
                 }
                 events.Add(new CombatEvent { Time = ev.Time, Amount = ev.Amount, Crit = ev.IsCrit, Attacker = atk, Target = ev.TargetId });
             };
@@ -2787,7 +3108,129 @@ namespace WSEngine
                         AppendLog("start-capture FAIL: " + reason);
                     }
                     break;
+                case "capture-list":
+                    HandleCaptureList();
+                    break;
+                case "capture-set-meta":
+                    HandleCaptureSetMeta(argsJson);
+                    break;
+                case "capture-rename-file":
+                    HandleCaptureRenameFile(argsJson);
+                    break;
+                case "capture-open-in-folder":
+                    HandleCaptureOpenInFolder(argsJson);
+                    break;
+                case "capture-open-folder":
+                    CaptureHistory.RevealInExplorer(capturesDir);
+                    break;
             }
+        }
+
+        // ---------------- Task 4: capture history handlers ----------------
+
+        void HandleCaptureList()
+        {
+            try
+            {
+                var items = CaptureHistory.List(capturesDir);
+                // Marca a captura ativa pra que UI possa desabilitar rename dela.
+                string activePath = pcapPath;
+                var sb = new StringBuilder();
+                sb.Append('[');
+                for (int i = 0; i < items.Count; i++)
+                {
+                    var it = items[i];
+                    bool active = !string.IsNullOrEmpty(activePath)
+                        && string.Equals(activePath, it.Path, StringComparison.OrdinalIgnoreCase);
+                    if (i > 0) sb.Append(',');
+                    sb.Append('{');
+                    sb.Append("\"path\":\"").Append(JsonEscape(it.Path)).Append("\",");
+                    sb.Append("\"fileName\":\"").Append(JsonEscape(it.FileName)).Append("\",");
+                    sb.Append("\"name\":\"").Append(JsonEscape(it.Name)).Append("\",");
+                    sb.Append("\"note\":\"").Append(JsonEscape(it.Note)).Append("\",");
+                    sb.Append("\"createdAt\":\"").Append(it.CreatedAt.ToString("o")).Append("\",");
+                    sb.Append("\"sizeBytes\":").Append(it.SizeBytes).Append(',');
+                    sb.Append("\"available\":").Append(it.Available ? "true" : "false").Append(',');
+                    sb.Append("\"active\":").Append(active ? "true" : "false");
+                    sb.Append('}');
+                }
+                sb.Append(']');
+                _webHost.PushCaptureList(sb.ToString());
+            }
+            catch (Exception ex) { AppendLog("[capture-list] " + ex.Message); }
+        }
+
+        void HandleCaptureSetMeta(string argsJson)
+        {
+            try
+            {
+                string path = ExtractJsonString(argsJson, "path");
+                string name = ExtractJsonString(argsJson, "name");
+                string note = ExtractJsonString(argsJson, "note");
+                if (string.IsNullOrEmpty(path)) { _webHost.PushToast("error", "path faltando"); return; }
+                CaptureHistory.SaveSidecar(path, name, note);
+                AppendLog("[capture-meta] " + Path.GetFileName(path) + "  name=\"" + name + "\"");
+                HandleCaptureList();   // repush lista atualizada
+            }
+            catch (Exception ex)
+            {
+                AppendLog("[capture-set-meta] " + ex.Message);
+                _webHost.PushToast("error", ex.Message);
+            }
+        }
+
+        void HandleCaptureRenameFile(string argsJson)
+        {
+            try
+            {
+                string path = ExtractJsonString(argsJson, "path");
+                string newBaseName = ExtractJsonString(argsJson, "newBaseName");
+                if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(newBaseName))
+                { _webHost.PushToast("error", "path ou newBaseName faltando"); return; }
+                // Segurança: não renomear se é a captura ativa (dumpcap segurando lock).
+                if (string.Equals(pcapPath, path, StringComparison.OrdinalIgnoreCase) && IsCapturing())
+                {
+                    _webHost.PushToast("error", "captura ativa — pare a captura antes de renomear o arquivo");
+                    return;
+                }
+                string err;
+                string newPath = CaptureHistory.RenameCaptureFile(path, newBaseName, out err);
+                if (newPath == null)
+                {
+                    _webHost.PushToast("error", "rename falhou: " + err);
+                    AppendLog("[capture-rename] " + path + " -> " + newBaseName + " : " + err);
+                    return;
+                }
+                AppendLog("[capture-rename] " + Path.GetFileName(path) + " -> " + Path.GetFileName(newPath));
+                _webHost.PushToast("ok", "arquivo renomeado");
+                HandleCaptureList();
+            }
+            catch (Exception ex)
+            {
+                AppendLog("[capture-rename-file] " + ex.Message);
+                _webHost.PushToast("error", ex.Message);
+            }
+        }
+
+        void HandleCaptureOpenInFolder(string argsJson)
+        {
+            try
+            {
+                string path = ExtractJsonString(argsJson, "path");
+                if (string.IsNullOrEmpty(path)) return;
+                CaptureHistory.RevealInExplorer(path);
+            }
+            catch (Exception ex) { AppendLog("[capture-open] " + ex.Message); }
+        }
+
+        static string ExtractJsonString(string json, string key)
+        {
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key)) return "";
+            var m = System.Text.RegularExpressions.Regex.Match(
+                json, "\"" + System.Text.RegularExpressions.Regex.Escape(key) + "\"\\s*:\\s*\"((?:\\\\.|[^\"])*)\"");
+            if (!m.Success) return "";
+            string raw = m.Groups[1].Value;
+            return raw.Replace("\\\"", "\"").Replace("\\\\", "\\").Replace("\\n", "\n");
         }
 
         // ---------------- Status ----------------
