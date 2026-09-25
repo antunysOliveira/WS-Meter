@@ -880,8 +880,13 @@ namespace WSEngine
                 catch { return new HashSet<uint>(); }
             };
             var _playerClassIdSyncRef = playerClassId;
+            var _autoNameCacheSyncRef = autoNameCache;
             CommunitySync.LiveNameMapProvider = () => {
                 try { return new Dictionary<uint, string>(_nameMapRef); }
+                catch { return null; }
+            };
+            CommunitySync.LiveAutoNameProvider = () => {
+                try { return new Dictionary<uint, string>(_autoNameCacheSyncRef); }
                 catch { return null; }
             };
             CommunitySync.LivePlayerClassProvider = () => {

@@ -615,13 +615,38 @@ namespace WSEngineMemScan
 
         static void WriteJson(string path, Dictionary<uint, string> map)
         {
+            // [2026-09-25] Cumulative merge — igual class file (persistedClasses).
+            // Antes era overwrite, então class file (que persiste) tinha eids
+            // que mem-players.json (só current scan) não tinha, quebrando o
+            // join no push do CommunitySync. Agora unimos com file existente.
+            var merged = new Dictionary<uint, string>();
+            if (File.Exists(path))
+            {
+                try
+                {
+                    var text = File.ReadAllText(path);
+                    var rx = new System.Text.RegularExpressions.Regex("\"0x([0-9A-Fa-f]+)\"\\s*:\\s*\"([^\"]*)\"");
+                    foreach (System.Text.RegularExpressions.Match m in rx.Matches(text))
+                    {
+                        uint id = Convert.ToUInt32(m.Groups[1].Value, 16);
+                        string nick = m.Groups[2].Value;
+                        if (id != 0 && !string.IsNullOrEmpty(nick)) merged[id] = nick;
+                    }
+                }
+                catch { }
+            }
+            foreach (var kv in map)
+            {
+                if (kv.Value == null) continue;   // poisoned collision
+                merged[kv.Key] = kv.Value;         // current scan wins (fresh)
+            }
+
             var sb = new StringBuilder();
             sb.Append("{\n");
             bool first = true;
-            int written = 0, poisoned = 0;
-            foreach (var kv in map)
+            int written = 0;
+            foreach (var kv in merged)
             {
-                if (kv.Value == null) { poisoned++; continue; }  // skip poisoned collisions
                 if (!first) sb.Append(",\n");
                 first = false;
                 string escaped = kv.Value.Replace("\\", "\\\\").Replace("\"", "\\\"");
@@ -630,7 +655,7 @@ namespace WSEngineMemScan
             }
             sb.Append("\n}");
             File.WriteAllText(path, sb.ToString());
-            Console.WriteLine("Wrote " + written + " entries (poisoned/collided: " + poisoned + ") -> " + path);
+            Console.WriteLine("Wrote " + written + " entries (cumulative merge) -> " + path);
         }
     }
 }

@@ -84,6 +84,11 @@ namespace WSEngine
         // class coverage no backend fica muito baixa.
         public static Func<Dictionary<uint, string>> LiveNameMapProvider;
         public static Func<Dictionary<uint, int>> LivePlayerClassProvider;
+        // autoNameCache é união memscan+seed+resolver. Mais completo que
+        // mem-players.json (memscan overwrite a cada scan; autoNameCache
+        // acumula por sessão). Cobre nicks pra pushar class que veio de
+        // scans anteriores.
+        public static Func<Dictionary<uint, string>> LiveAutoNameProvider;
 
         public static int CachedCount { get { lock (_lock) return _cache.Count; } }
         public static string ClientIdForDiag { get { return _clientId ?? "(uninitialized)"; } }
@@ -190,6 +195,7 @@ namespace WSEngine
             try
             {
                 var liveNames = LiveNameMapProvider != null ? LiveNameMapProvider() : null;
+                var autoNames = LiveAutoNameProvider != null ? LiveAutoNameProvider() : null;
                 var liveClasses = LivePlayerClassProvider != null ? LivePlayerClassProvider() : null;
                 if (liveNames != null)
                 {
@@ -197,6 +203,15 @@ namespace WSEngine
                     {
                         if (kv.Key == 0 || string.IsNullOrEmpty(kv.Value)) continue;
                         result[kv.Key] = new LocalSnapshotEntry { Nick = kv.Value, ClassId = 0 };
+                    }
+                }
+                if (autoNames != null)
+                {
+                    foreach (var kv in autoNames)
+                    {
+                        if (kv.Key == 0 || string.IsNullOrEmpty(kv.Value)) continue;
+                        if (!result.ContainsKey(kv.Key))
+                            result[kv.Key] = new LocalSnapshotEntry { Nick = kv.Value, ClassId = 0 };
                     }
                 }
                 if (liveClasses != null)
