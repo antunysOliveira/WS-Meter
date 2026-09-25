@@ -142,12 +142,12 @@ namespace WSEngine
             catch { }
             try
             {
-                // Task 3 Fase B: ExtractChatSenders agora walks tag=65 nested
-                // em tag=492 tb. Byte-scan bytescan492 removido do pipeline
-                // vivo (redundante — 100% dos hits eram tag=65 nested).
+                // Task 3 Fase B + hotfix nomes.pcapng: tag=65 struct é trusted
+                // (byte-fixed layout, id validado). Commit direto — gating só
+                // servia pra bytescan492 (já removido).
                 var chat = new Dictionary<uint, string>();
                 MainForm.ExtractChatSenders(msgs, chat);
-                foreach (var kv in chat) enroll(kv.Key, kv.Value, "tag65");
+                foreach (var kv in chat) commit(kv.Key, kv.Value, "tag65");
             }
             catch { }
 

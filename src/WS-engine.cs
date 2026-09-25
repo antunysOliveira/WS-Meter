@@ -1185,13 +1185,22 @@ namespace WSEngine
                 }
                 catch { }
 
-                // 3. tag=65 chat sender — GATED. Só grava se sender_id já
-                //    existe em eventIds; caso contrário fica em pending.
+                // 3. tag=65 chat sender — commit direto. Body layout é struct
+                //    fixa (bytes 3..6 = sender_id, byte 7 = name_len, byte 8+
+                //    = name ASCII). O 2nd-id que causava falso positivo era o
+                //    idAfter capturado pelo byte-scan flat — TryExtractChatBody
+                //    nunca lê idAfter. Se player chattou, ele existe. Registra
+                //    em eventIds pra que futuras evidências (buff/damage)
+                //    reconheçam o id como conhecido.
                 try
                 {
                     var chat = new Dictionary<uint, string>();
                     ExtractChatSenders(curFrames, chat);
-                    foreach (var kv in chat) EnrollName(kv.Key, kv.Value, "tag65");
+                    foreach (var kv in chat)
+                    {
+                        NotifyEventId(kv.Key);
+                        CommitName(kv.Key, kv.Value, "tag65");
+                    }
                 }
                 catch { }
 
