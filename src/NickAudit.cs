@@ -142,6 +142,13 @@ namespace WSEngine
             catch { }
             try
             {
+                var t9 = new Dictionary<uint, string>();
+                Tag9NameDecoder.Extract(msgs, t9);
+                foreach (var kv in t9) commit(kv.Key, kv.Value, "tag9");
+            }
+            catch { }
+            try
+            {
                 // Task 3 Fase B + hotfix nomes.pcapng: tag=65 struct é trusted
                 // (byte-fixed layout, id validado). Commit direto — gating só
                 // servia pra bytescan492 (já removido).

@@ -1185,7 +1185,22 @@ namespace WSEngine
                 }
                 catch { }
 
-                // 3. tag=65 chat sender — commit direto. Body layout é struct
+                // 3. tag=9 roster entries — struct compacta [nlen][name][id].
+                //    Nested principalmente em tag=492 LZ4. Cobre players que
+                //    o servidor lista mas ainda não atacaram. Precede tag=65.
+                try
+                {
+                    var t9 = new Dictionary<uint, string>();
+                    Tag9NameDecoder.Extract(curFrames, t9);
+                    foreach (var kv in t9)
+                    {
+                        NotifyEventId(kv.Key);
+                        CommitName(kv.Key, kv.Value, "tag9");
+                    }
+                }
+                catch { }
+
+                // 4. tag=65 chat sender — commit direto. Body layout é struct
                 //    fixa (bytes 3..6 = sender_id, byte 7 = name_len, byte 8+
                 //    = name ASCII). O 2nd-id que causava falso positivo era o
                 //    idAfter capturado pelo byte-scan flat — TryExtractChatBody
@@ -1747,9 +1762,10 @@ namespace WSEngine
             switch (origin)
             {
                 case "memscan":     return 100;
-                case "tag207":     return 80;
-                case "tag551":     return 60;
-                case "tag554":     return 55;
+                case "tag207":      return 80;
+                case "tag551":      return 60;
+                case "tag554":      return 55;
+                case "tag9":        return 50;
                 case "tag65":       return 30;
                 case "bytescan492": return 10;
                 default:            return 0;
