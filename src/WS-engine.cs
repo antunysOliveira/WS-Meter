@@ -879,6 +879,15 @@ namespace WSEngine
                 }
                 catch { return new HashSet<uint>(); }
             };
+            var _playerClassIdSyncRef = playerClassId;
+            CommunitySync.LiveNameMapProvider = () => {
+                try { return new Dictionary<uint, string>(_nameMapRef); }
+                catch { return null; }
+            };
+            CommunitySync.LivePlayerClassProvider = () => {
+                try { return new Dictionary<uint, int>(_playerClassIdSyncRef); }
+                catch { return null; }
+            };
             CommunitySync.Init(root, communityUrl, communityKey, communityEnabled, ver);
             CommunitySync.SeedFromCache(autoNameCache, playerClassId);
             // ──────────────────────────────────────────────────────────────────────────────

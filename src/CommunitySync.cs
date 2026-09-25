@@ -77,6 +77,14 @@ namespace WSEngine
         // casaram no fingerprint mas nunca apareceram em wire real).
         public static Func<HashSet<uint>> PacketConfirmedProvider;
 
+        // Providers pra runtime state (RAM). Populados pelo MainForm em boot.
+        // Usados pelo push loop pra pegar nick/class decodados de packet
+        // (tag=10, tag=207, tag=551, tag=554) que nunca são persistidos em
+        // JSON — memscan file só cobre o que a memory scan pegou. Sem esses,
+        // class coverage no backend fica muito baixa.
+        public static Func<Dictionary<uint, string>> LiveNameMapProvider;
+        public static Func<Dictionary<uint, int>> LivePlayerClassProvider;
+
         public static int CachedCount { get { lock (_lock) return _cache.Count; } }
         public static string ClientIdForDiag { get { return _clientId ?? "(uninitialized)"; } }
         public static DateTime LastPullAtUtc { get { return _lastPullAt; } }
@@ -174,6 +182,37 @@ namespace WSEngine
         internal static Dictionary<uint, LocalSnapshotEntry> LoadLocalSnapshotFromMemJsons(string root)
         {
             var result = new Dictionary<uint, LocalSnapshotEntry>();
+
+            // 1. Merge runtime state (RAM). Nick de packet decoders (tag=9,
+            //    tag=65, tag=207, tag=551, tag=554) + class de tag=10/551/554
+            //    /207. Sem isso, só memscan JSON alimentava o push — perdia
+            //    ~95% da class coverage.
+            try
+            {
+                var liveNames = LiveNameMapProvider != null ? LiveNameMapProvider() : null;
+                var liveClasses = LivePlayerClassProvider != null ? LivePlayerClassProvider() : null;
+                if (liveNames != null)
+                {
+                    foreach (var kv in liveNames)
+                    {
+                        if (kv.Key == 0 || string.IsNullOrEmpty(kv.Value)) continue;
+                        result[kv.Key] = new LocalSnapshotEntry { Nick = kv.Value, ClassId = 0 };
+                    }
+                }
+                if (liveClasses != null)
+                {
+                    foreach (var kv in liveClasses)
+                    {
+                        if (kv.Key == 0 || kv.Value <= 0) continue;
+                        LocalSnapshotEntry e;
+                        if (result.TryGetValue(kv.Key, out e)) e.ClassId = kv.Value;
+                        // Sem nick → não sobe (ComputeDeltaVsRemote skip)
+                    }
+                }
+            }
+            catch { }
+
+            // 2. Merge memscan JSONs (baseline: cobre players offline).
             try
             {
                 string pPlayers = Path.Combine(root, "ws-engine.mem-players.json");
@@ -186,7 +225,9 @@ namespace WSEngine
                         if (id == 0) continue;
                         string nick = m.Groups[2].Value;
                         if (string.IsNullOrEmpty(nick)) continue;
-                        result[id] = new LocalSnapshotEntry { Nick = nick, ClassId = 0 };
+                        // Não sobrescreve nick de packet (mais confiável)
+                        if (!result.ContainsKey(id))
+                            result[id] = new LocalSnapshotEntry { Nick = nick, ClassId = 0 };
                     }
                 }
                 string pClasses = Path.Combine(root, "ws-engine.mem-player-classes.json");
@@ -198,7 +239,9 @@ namespace WSEngine
                         uint id = Convert.ToUInt32(m.Groups[1].Value, 16);
                         int cid = int.Parse(m.Groups[2].Value);
                         LocalSnapshotEntry e;
-                        if (result.TryGetValue(id, out e)) e.ClassId = cid;
+                        // Só preenche se runtime não tiver; tag=554 no runtime
+                        // é autoritativo, memscan pode ter versão antiga.
+                        if (result.TryGetValue(id, out e) && e.ClassId <= 0) e.ClassId = cid;
                         // Se class sem nick, ignora — precisamos do nick pra subir.
                     }
                 }
