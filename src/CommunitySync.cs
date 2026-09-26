@@ -738,15 +738,24 @@ namespace WSEngine
 
         internal static string ResolveClientId(string root)
         {
-            // Priority 1: me.txt (decimal entity_id do char do user)
+            // Priority 1: me.txt — aceita decimal OU "0x<hex>" (formato salvo
+            // pelo right-click "This is me" que persiste em hex com prefix).
             try
             {
                 string meFile = Path.Combine(root, "ws-engine.me.txt");
                 if (File.Exists(meFile))
                 {
                     string raw = File.ReadAllText(meFile).Trim();
-                    uint id;
-                    if (uint.TryParse(raw, out id) && id != 0)
+                    // Sanitiza newlines/whitespace extra
+                    raw = raw.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
+                    uint id = 0;
+                    bool ok = false;
+                    if (raw.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                        ok = uint.TryParse(raw.Substring(2), System.Globalization.NumberStyles.HexNumber,
+                                            System.Globalization.CultureInfo.InvariantCulture, out id);
+                    else
+                        ok = uint.TryParse(raw, out id);
+                    if (ok && id != 0)
                         return "0x" + id.ToString("X8");
                 }
             }
