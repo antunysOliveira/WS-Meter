@@ -21,7 +21,7 @@ namespace WSEngine
 {
     static class Inventory
     {
-        const string ServerIp = "152.233.19.169";
+        const string ServerIp = "";  // empty triggers PcapngReader auto-detect per pcap
 
         struct Row
         {

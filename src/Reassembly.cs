@@ -23,9 +23,130 @@ namespace WSEngine
 
     static class PcapngReader
     {
+        // Scan pcap headers to identify dominant remote TCP endpoint (non-RFC1918,
+        // non-loopback). Used when caller passes empty/null serverIp — Warspear's
+        // game server IP changes across patches, so hardcoding is brittle. Picks
+        // endpoint with most TCP bytes (server always dominates traffic in a game
+        // capture). Returns null if pcap is empty or contains only local traffic.
+        public static string AutoDetectServerIp(string path)
+        {
+            byte[] all;
+            try
+            {
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                using (var ms = new MemoryStream())
+                {
+                    fs.CopyTo(ms);
+                    all = ms.ToArray();
+                }
+            }
+            catch { return null; }
+
+            var v4Bytes = new Dictionary<string, long>();
+            var v6Bytes = new Dictionary<string, long>();
+            int pos = 0;
+            int scanned = 0;
+            const int MaxScan = 8000;   // enough to identify dominant peer, cheap on big pcaps
+            while (pos + 12 <= all.Length && scanned < MaxScan)
+            {
+                if (pos + 8 > all.Length) break;
+                uint blockType = BitConverter.ToUInt32(all, pos);
+                uint blockLen  = BitConverter.ToUInt32(all, pos + 4);
+                if (blockLen < 12 || pos + (int)blockLen > all.Length) break;
+                if (blockType == 0x00000006u)
+                {
+                    scanned++;
+                    uint capLn = BitConverter.ToUInt32(all, pos + 20);
+                    int dataStart = pos + 28;
+                    if (capLn >= 14 && dataStart + capLn <= pos + blockLen)
+                    {
+                        ushort etherType = (ushort)((all[dataStart + 12] << 8) | all[dataStart + 13]);
+                        if (etherType == 0x0800 && capLn >= 34)
+                        {
+                            int ipStart = dataStart + 14;
+                            byte proto = all[ipStart + 9];
+                            if (proto == 6)
+                            {
+                                int ipTotalLen = (all[ipStart + 2] << 8) | all[ipStart + 3];
+                                string srcIp = string.Format("{0}.{1}.{2}.{3}", all[ipStart + 12], all[ipStart + 13], all[ipStart + 14], all[ipStart + 15]);
+                                string dstIp = string.Format("{0}.{1}.{2}.{3}", all[ipStart + 16], all[ipStart + 17], all[ipStart + 18], all[ipStart + 19]);
+                                if (!IsLocalV4(srcIp)) AddBytes(v4Bytes, srcIp, ipTotalLen);
+                                if (!IsLocalV4(dstIp)) AddBytes(v4Bytes, dstIp, ipTotalLen);
+                            }
+                        }
+                        else if (etherType == 0x86dd && capLn >= 54)
+                        {
+                            int ipStart = dataStart + 14;
+                            byte nextHdr = all[ipStart + 6];
+                            if (nextHdr == 6)
+                            {
+                                int ipPayloadLen = (all[ipStart + 4] << 8) | all[ipStart + 5];
+                                string srcIp = FormatIpv6(all, ipStart + 8);
+                                string dstIp = FormatIpv6(all, ipStart + 24);
+                                if (!IsLocalV6(srcIp)) AddBytes(v6Bytes, srcIp, ipPayloadLen);
+                                if (!IsLocalV6(dstIp)) AddBytes(v6Bytes, dstIp, ipPayloadLen);
+                            }
+                        }
+                    }
+                }
+                pos += (int)blockLen;
+            }
+            // Prefer whichever family has more traffic; return top-1 by bytes.
+            string bestV4 = null; long bestV4B = 0;
+            foreach (var kv in v4Bytes) if (kv.Value > bestV4B) { bestV4B = kv.Value; bestV4 = kv.Key; }
+            string bestV6 = null; long bestV6B = 0;
+            foreach (var kv in v6Bytes) if (kv.Value > bestV6B) { bestV6B = kv.Value; bestV6 = kv.Key; }
+            if (bestV4B == 0 && bestV6B == 0) return null;
+            return bestV4B >= bestV6B ? bestV4 : bestV6;
+        }
+
+        static void AddBytes(Dictionary<string, long> map, string ip, int n)
+        {
+            long v; map.TryGetValue(ip, out v); map[ip] = v + n;
+        }
+
+        static bool IsLocalV4(string ip)
+        {
+            // RFC1918 + loopback + link-local. Cheap prefix check avoids parsing.
+            if (ip.StartsWith("10.")) return true;
+            if (ip.StartsWith("192.168.")) return true;
+            if (ip.StartsWith("127.")) return true;
+            if (ip.StartsWith("169.254.")) return true;
+            if (ip.StartsWith("172."))
+            {
+                int dot = ip.IndexOf('.', 4);
+                if (dot > 4)
+                {
+                    int oct; if (int.TryParse(ip.Substring(4, dot - 4), out oct))
+                        if (oct >= 16 && oct <= 31) return true;
+                }
+            }
+            return false;
+        }
+
+        static bool IsLocalV6(string ip)
+        {
+            // loopback + link-local (fe80::) + unique-local (fc00::/fd00::)
+            if (ip == "::1") return true;
+            if (ip.StartsWith("fe80:") || ip.StartsWith("fe80::")) return true;
+            if (ip.StartsWith("fc") || ip.StartsWith("fd")) return true;
+            return false;
+        }
+
         // Parse pcapng file. Returns TCP segments filtered by serverIp (either src or dst must equal it).
+        // If serverIp is null/empty, auto-detects dominant remote endpoint via AutoDetectServerIp.
         public static List<TcpSegment> ReadTcp(string path, string serverIp, out string diag)
         {
+            if (string.IsNullOrEmpty(serverIp))
+            {
+                string detected = AutoDetectServerIp(path);
+                if (string.IsNullOrEmpty(detected))
+                {
+                    diag = "auto-detect failed: no public remote endpoint found in pcap";
+                    return new List<TcpSegment>();
+                }
+                serverIp = detected;
+            }
             var sb = new StringBuilder();
             var segs = new List<TcpSegment>();
             byte[] all;
@@ -234,7 +355,7 @@ namespace WSEngine
                 }
                 pos += (int)blockLen;
             }
-            sb.AppendFormat("EPB={0}, IPv4={1}, IPv6={2}, TCP-with-payload-matching-server={3}, tsResol=1e-{4}", nEpb, nIpv4, nIpv6, nTcp, Math.Log10(1.0 / tsResol));
+            sb.AppendFormat("serverIp={0}, EPB={1}, IPv4={2}, IPv6={3}, TCP-with-payload-matching-server={4}, tsResol=1e-{5}", serverIp, nEpb, nIpv4, nIpv6, nTcp, Math.Log10(1.0 / tsResol));
             diag = sb.ToString();
             return segs;
         }

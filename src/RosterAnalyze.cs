@@ -43,7 +43,7 @@ namespace WSEngine
         {
             if (!File.Exists(pcapPath)) { Console.Error.WriteLine("no pcap: " + pcapPath); return 2; }
             string diag;
-            var segs = PcapngReader.ReadTcp(pcapPath, "152.233.19.169", out diag);
+            var segs = PcapngReader.ReadTcp(pcapPath, "", out diag);
             if (segs.Count == 0) { Console.Error.WriteLine("no tcp payload: " + diag); return 3; }
             double t0 = segs[0].Time;
             var res = TlvSplit.Parse(segs);

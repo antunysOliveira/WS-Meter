@@ -50,7 +50,7 @@ namespace WSEngine
                 if (!File.Exists(path)) { Console.Error.WriteLine("skip missing: " + path); continue; }
                 Console.Error.WriteLine("scanning " + Path.GetFileName(path) + "...");
                 string diag;
-                var segs = PcapngReader.ReadTcp(path, "152.233.19.169", out diag);
+                var segs = PcapngReader.ReadTcp(path, "", out diag);
                 if (segs.Count == 0) continue;
                 var res = TlvSplit.Parse(segs);
                 foreach (var m in res.Messages)

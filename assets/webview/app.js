@@ -571,17 +571,18 @@ function setStatus(text) {
     document.getElementById('status-text').textContent = text;
 }
 function setAreaCount(msg) {
-    // Toolbar pill (compact players / mobs+pets breakdown for the Luta tab)
+    // Toolbar pill: jogadores (raw = 0x00xxxxxx bruto, ~= real) + invocações.
+    // Mobs normais excluídos por design.
     var players = msg.players || 0;
+    var playersRaw = (typeof msg.playersRaw === 'number') ? msg.playersRaw : players;
     var pets = msg.pets || 0;
     var mobs = msg.mobs || 0;
     var other = msg.other || 0;
     var total = msg.total || (players + pets + mobs + other);
-    // Area counter pill foi removida da toolbar — null-check antes de atualizar
     var _ap = document.getElementById('area-players-n');
-    if (_ap) _ap.textContent = players;
-    var _am = document.getElementById('area-mobs-n');
-    if (_am) _am.textContent = (mobs + pets);
+    if (_ap) _ap.textContent = playersRaw;
+    var _ape = document.getElementById('area-pets-n');
+    if (_ape) _ape.textContent = pets;
 
     // Jogadores tab foi removida — setNum já era null-safe
     var setNum = function (id, n) { var el = document.getElementById(id); if (el) el.textContent = n; };

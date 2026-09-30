@@ -27,7 +27,7 @@ namespace WSEngine
                 return 2;
             }
             string diag;
-            var segs = PcapngReader.ReadTcp(pcapPath, "152.233.19.169", out diag);
+            var segs = PcapngReader.ReadTcp(pcapPath, "", out diag);
             if (segs.Count == 0)
             {
                 Console.Error.WriteLine("dump: no matching TCP payload — " + diag);

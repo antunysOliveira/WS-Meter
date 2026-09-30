@@ -138,10 +138,11 @@ namespace WSEngine
             Post("{\"type\":\"capture\",\"state\":\"" + JsonEscape(state) + "\"}");
         }
 
-        public void PushArea(int players, int pets, int mobs, int other)
+        public void PushArea(int players, int pets, int mobs, int other, int playersRaw)
         {
             int total = players + pets + mobs + other;
             Post("{\"type\":\"area\",\"players\":" + players
+                + ",\"playersRaw\":" + playersRaw
                 + ",\"pets\":" + pets
                 + ",\"mobs\":" + mobs
                 + ",\"other\":" + other

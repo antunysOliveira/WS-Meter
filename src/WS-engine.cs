@@ -106,7 +106,7 @@ namespace WSEngine
                 if (i + 1 < args.Length && args[i] == "--nick-audit")
                 {
                     AttachConsole(ATTACH_PARENT_PROCESS);
-                    string ip = "152.233.19.169";
+                    string ip = "";  // empty triggers PcapngReader auto-detect
                     if (i + 2 < args.Length && !args[i + 2].StartsWith("--")) ip = args[i + 2];
                     return NickAudit.Run(args[i + 1], ip);
                 }
@@ -114,7 +114,7 @@ namespace WSEngine
                 {
                     AttachConsole(ATTACH_PARENT_PROCESS);
                     string diag;
-                    var segs = PcapngReader.ReadTcp(args[i + 1], "152.233.19.169", out diag);
+                    var segs = PcapngReader.ReadTcp(args[i + 1], "", out diag);
                     if (segs.Count == 0) { Console.Error.WriteLine("area-count: no TCP payload"); return 3; }
                     double t0 = segs[0].Time;
                     var msgs = TlvSplit.Parse(segs).Messages;
@@ -199,7 +199,7 @@ namespace WSEngine
                 {
                     AttachConsole(ATTACH_PARENT_PROCESS);
                     string diag;
-                    var segs = PcapngReader.ReadTcp(args[i + 1], "152.233.19.169", out diag);
+                    var segs = PcapngReader.ReadTcp(args[i + 1], "", out diag);
                     if (segs.Count == 0) { Console.Error.WriteLine("no TCP payload"); return 3; }
                     var msgs = TlvSplit.Parse(segs).Messages;
                     var offNames = new Dictionary<uint, string>();
@@ -299,7 +299,7 @@ namespace WSEngine
                     string pcap = args[i + 1];
                     GameData.Init(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data"));
                     string diag;
-                    var segs = PcapngReader.ReadTcp(pcap, "152.233.19.169", out diag);
+                    var segs = PcapngReader.ReadTcp(pcap, "", out diag);
                     var res = TlvSplit.Parse(segs);
                     if (res == null || res.Messages == null || res.Messages.Count == 0) { Console.Error.WriteLine("no messages"); return 2; }
                     double t0 = res.Messages[0].Time;
@@ -1596,6 +1596,7 @@ namespace WSEngine
                         var buffMap = buffMapAll;
 
                         int cntPlayers = 0, cntPets = 0, cntMobs = 0, cntOther = 0;
+                        int cntPlayersRaw = 0;   // 0x00xxxxxx range, sem exigir resolução
                         var pb = new StringBuilder();
                         pb.Append('[');
                         bool firstP = true;
@@ -1613,6 +1614,15 @@ namespace WSEngine
                             var ae = areaSnap.Entities[pi];
                             string kind = ClassifyAreaEntity(ae.EntityId, summonOwners);
                             double age = nowSec - ae.LastSeen;
+
+                            // Raw player count PRIMEIRO — antes do window filter estrito.
+                            // Qualquer id 0x00xxxxxx (>= 0x00010000) dentro da janela de
+                            // player (30min) conta, mesmo sem resolução por memscan/chat/
+                            // damage. Pill toolbar mostra esse valor bruto (aproxima real).
+                            byte hiByte = (byte)((ae.EntityId >> 24) & 0xFF);
+                            if (hiByte == 0x00 && ae.EntityId >= 0x00010000 && age <= WinPlayer)
+                                cntPlayersRaw++;
+
                             double win = (kind == "player") ? WinPlayer : WinMobPet;
                             if (age > win) continue;   // stale — filtered out
 
@@ -1666,7 +1676,7 @@ namespace WSEngine
                         }
                         pb.Append(']');
                         _webHost.PushPlayers(pb.ToString());
-                        _webHost.PushArea(cntPlayers, cntPets, cntMobs, cntOther);
+                        _webHost.PushArea(cntPlayers, cntPets, cntMobs, cntOther, cntPlayersRaw);
                     }
                 }
             }

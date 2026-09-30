@@ -37,7 +37,7 @@ namespace WSEngine
             if (ext == ".pcapng" || ext == ".pcap")
             {
                 string diag;
-                segs = PcapngReader.ReadTcp(inputPath, "152.233.19.169", out diag);
+                segs = PcapngReader.ReadTcp(inputPath, "", out diag);
                 if (segs.Count == 0)
                 {
                     Console.Error.WriteLine("summary: no matching TCP payload — " + diag);
