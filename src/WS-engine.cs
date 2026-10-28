@@ -630,8 +630,8 @@ namespace WSEngine
         readonly string root;
         readonly string capturesDir;
         readonly string configPath;
-        const string ServerIp = "152.233.19.169";   // fallback default; runtime IP vive em _activeServerIp
-        string _activeServerIp = "152.233.19.169";
+        const string ServerIp = "79.127.137.247";   // fallback default; runtime IP vive em _activeServerIp
+        string _activeServerIp = "79.127.137.247";
 
         Process proc;
         string pcapPath;
@@ -695,6 +695,28 @@ namespace WSEngine
         Dictionary<uint, int> playerClassId = new Dictionary<uint, int>();  // memscan populates; leaderboard consults for icon lookup
         Dictionary<uint, EntitySpawnInfo> _entitySpawnCache = new Dictionary<uint, EntitySpawnInfo>();  // tag=26 → max_hp por entity_id, base pra rank de mob
         Dictionary<int, string> classIconMap = new Dictionary<int, string>();  // classId → filename from assets/class-icons/individual/class-icon-map.json
+
+        // ---- Rotation accumulators ----
+        // Pcap arquivo cresce indefinidamente → LivePoll re-parseia tudo cada 1.5s → O(tempo²).
+        // Fix: quando pcap passa threshold, salvamos agregados em RAM aqui, matamos dumpcap,
+        // rodamos novo dumpcap em arquivo fresh. Display sempre merge (cur + _accum).
+        Dictionary<uint, long> _accumAttackerSum = new Dictionary<uint, long>();
+        Dictionary<uint, int>  _accumAttackerCount = new Dictionary<uint, int>();
+        Dictionary<uint, uint> _accumAttackerMax = new Dictionary<uint, uint>();
+        Dictionary<uint, long> _accumHealSrc = new Dictionary<uint, long>();
+        Dictionary<uint, long> _accumHealTgt = new Dictionary<uint, long>();
+        Dictionary<uint, long> _accumHealEff = new Dictionary<uint, long>();
+        Dictionary<uint, long> _accumReceived = new Dictionary<uint, long>();
+        Dictionary<uint, Dictionary<string, long>> _accumAttackerByRank = new Dictionary<uint, Dictionary<string, long>>();
+        long _accumDmgUnresolved = 0;
+        int _accumHitsUnresolved = 0;
+        uint _accumMaxUnresolved = 0;
+        double _accumFightSec = 0;
+        int _rotationCount = 0;
+        const long RotationThresholdBytes = 30L * 1024 * 1024;  // 30 MB ≈ 5-10 min raid tráfego
+        DateTime _lastRotationAt = DateTime.MinValue;
+        bool _rotatingCapture = false;
+        bool _pollInProgress = false;
         readonly string mePath;
         readonly string nicknamesPath;
         readonly string autoNamesPath;
@@ -1101,6 +1123,17 @@ namespace WSEngine
 
         void LivePoll()
         {
+            // Guard reentrancy: se Timer tick dispara enquanto poll anterior ainda roda,
+            // ignora. Antes empilhava polls e cada parse de pcap grande travava UI por
+            // vários segundos consecutivos.
+            if (_pollInProgress) return;
+            _pollInProgress = true;
+            try { LivePollInner(); }
+            finally { _pollInProgress = false; }
+        }
+
+        void LivePollInner()
+        {
             string path = null;
             if (proc != null && !proc.HasExited && !string.IsNullOrEmpty(pcapPath) && File.Exists(pcapPath))
                 path = pcapPath;
@@ -1430,6 +1463,20 @@ namespace WSEngine
                     if (hi != 0x00 || kv.Key < 0x00010000) continue;
                     if (!playerSet.Contains(kv.Key)) { playerIds.Add(kv.Key); playerSet.Add(kv.Key); }
                 }
+                // Players que atacaram em pcap anterior (rotacionado out) e não aparecem mais
+                // em perAttacker/healBySrc desta janela. Mantém row visível.
+                foreach (var id in _accumAttackerSum.Keys)
+                {
+                    byte hi = (byte)(id >> 24);
+                    if (hi != 0x00 || id < 0x00010000) continue;
+                    if (!playerSet.Contains(id)) { playerIds.Add(id); playerSet.Add(id); }
+                }
+                foreach (var id in _accumHealSrc.Keys)
+                {
+                    byte hi = (byte)(id >> 24);
+                    if (hi != 0x00 || id < 0x00010000) continue;
+                    if (!playerSet.Contains(id)) { playerIds.Add(id); playerSet.Add(id); }
+                }
 
                 // Buff map (tag=429) — used both for the leaderboard buffs strip and
                 // the Players roster tab. Computed once per LivePoll.
@@ -1459,27 +1506,58 @@ namespace WSEngine
                 var sb = new StringBuilder();
                 sb.Append('[');
                 bool first = true;
+                // Merge helpers — soma cur (deste poll) com _accum (rotações passadas).
+                Func<uint, long> dmgSumFor = (x) =>
+                {
+                    long s = 0;
+                    List<int> hh;
+                    if (perAttacker.TryGetValue(x, out hh)) for (int i = 0; i < hh.Count; i++) s += hh[i];
+                    long a; _accumAttackerSum.TryGetValue(x, out a);
+                    return s + a;
+                };
+                Func<uint, long> healSumFor = (x) =>
+                {
+                    long c; healBySrc.TryGetValue(x, out c);
+                    long a; _accumHealSrc.TryGetValue(x, out a);
+                    return c + a;
+                };
                 var sortedIds = playerIds.OrderByDescending(x =>
                 {
-                    List<int> hh; if (perAttacker.TryGetValue(x, out hh)) return (long)hh.Sum();
-                    long h; healBySrc.TryGetValue(x, out h); return h;
+                    long d = dmgSumFor(x);
+                    return d > 0 ? d : healSumFor(x);
                 }).ToList();
+                double accumFightSecLocal = _accumFightSec;
                 foreach (var id in sortedIds)
                 {
                     List<int> hits;
                     if (!perAttacker.TryGetValue(id, out hits)) hits = new List<int>();
-                    long tot = hits.Sum();
-                    int max = hits.Count > 0 ? hits.Max() : 0;
+                    long curSum = 0; for (int ih = 0; ih < hits.Count; ih++) curSum += hits[ih];
+                    int curMax = hits.Count > 0 ? hits.Max() : 0;
+                    int curCount = hits.Count;
+                    long aSum = 0; _accumAttackerSum.TryGetValue(id, out aSum);
+                    int aCount = 0; _accumAttackerCount.TryGetValue(id, out aCount);
+                    uint aMax = 0; _accumAttackerMax.TryGetValue(id, out aMax);
+                    long tot = curSum + aSum;
+                    int max = Math.Max(curMax, (int)aMax);
+                    int hitsCountMerged = curCount + aCount;
                     string guild;
                     playerGuildMap.TryGetValue(id, out guild);
-                    long received; perTargetReceivedLocal.TryGetValue(id, out received);
-                    long healDone; healBySrc.TryGetValue(id, out healDone);
-                    long healRecvRaw; healByTgt.TryGetValue(id, out healRecvRaw);
-                    long healRecv = healRecvRaw;
+                    long receivedCur; perTargetReceivedLocal.TryGetValue(id, out receivedCur);
+                    long receivedAcc; _accumReceived.TryGetValue(id, out receivedAcc);
+                    long received = receivedCur + receivedAcc;
+                    long healDoneCur; healBySrc.TryGetValue(id, out healDoneCur);
+                    long healDoneAcc; _accumHealSrc.TryGetValue(id, out healDoneAcc);
+                    long healDone = healDoneCur + healDoneAcc;
+                    long healRecvRawCur; healByTgt.TryGetValue(id, out healRecvRawCur);
+                    long healRecvRawAcc; _accumHealTgt.TryGetValue(id, out healRecvRawAcc);
+                    long healRecv = healRecvRawCur + healRecvRawAcc;
                     bool healRecvEff = false;
                     long eff;
-                    if (healRecvEffective.TryGetValue(id, out eff)) { healRecv = eff; healRecvEff = true; }
-                    double dps = fightSec > 0 ? tot / fightSec : 0;
+                    long effAcc; _accumHealEff.TryGetValue(id, out effAcc);
+                    if (healRecvEffective.TryGetValue(id, out eff)) { healRecv = eff + effAcc; healRecvEff = true; }
+                    else if (effAcc > 0) { healRecv = effAcc; healRecvEff = true; }
+                    double totalFightSec = fightSec + accumFightSecLocal;
+                    double dps = totalFightSec > 0 ? tot / totalFightSec : 0;
                     // Force PlayerResolver on the ID if class isn't cached yet —
                     // handles raids/zones that never emit tag=551 / 554 / 207 so
                     // memscan is the only route to the class field.
@@ -1512,6 +1590,14 @@ namespace WSEngine
                         rankMapRow.TryGetValue("forte", out dmgForte);
                         rankMapRow.TryGetValue("comum", out dmgComum);
                     }
+                    Dictionary<string, long> accRankMapRow;
+                    if (_accumAttackerByRank.TryGetValue(id, out accRankMapRow) && accRankMapRow != null)
+                    {
+                        long r; accRankMapRow.TryGetValue("raid",  out r); dmgRaid  += r;
+                        accRankMapRow.TryGetValue("chefe", out r); dmgChefe += r;
+                        accRankMapRow.TryGetValue("forte", out r); dmgForte += r;
+                        accRankMapRow.TryGetValue("comum", out r); dmgComum += r;
+                    }
                     sb.Append("{\"id\":\"0x").Append(id.ToString("x8")).Append("\"")
                       .Append(",\"name\":\"").Append(JsonEsc(NameFor(id))).Append('"')
                       .Append(",\"guild\":\"").Append(JsonEsc(guild ?? "")).Append('"')
@@ -1525,7 +1611,7 @@ namespace WSEngine
                       .Append(",\"healingRecv\":").Append(healRecv)
                       .Append(",\"healingRecvEffective\":").Append(healRecvEff ? "true" : "false")
                       .Append(",\"dps\":").Append(dps.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture))
-                      .Append(",\"hits\":").Append(hits.Count)
+                      .Append(",\"hits\":").Append(hitsCountMerged)
                       .Append(",\"max\":").Append(max)
                       .Append(",\"classId\":").Append(classId)
                       .Append(",\"classIconFile\":\"").Append(classFile).Append('"')
@@ -1553,25 +1639,42 @@ namespace WSEngine
                     sb.Append(']');
                     sb.Append('}');
                 }
-                if (mobDmg > 0)
+                // Soma de dano de mobs acumulado em rotações passadas (ids 0x0X/0x57 range).
+                long accMobDmg = 0; int accMobHits = 0; uint accMobMax = 0;
+                foreach (var kv in _accumAttackerSum)
+                {
+                    byte hiA = (byte)(kv.Key >> 24);
+                    bool isPlayerA = hiA == 0x00 && kv.Key >= 0x00010000;
+                    if (isPlayerA) continue;
+                    accMobDmg += kv.Value;
+                    int c; _accumAttackerCount.TryGetValue(kv.Key, out c); accMobHits += c;
+                    uint m; _accumAttackerMax.TryGetValue(kv.Key, out m); if (m > accMobMax) accMobMax = m;
+                }
+                long mergedMobDmg = mobDmg + accMobDmg;
+                int mergedMobHits = mobHits + accMobHits;
+                uint mergedMobMax = Math.Max(mobMax, accMobMax);
+                if (mergedMobDmg > 0)
                 {
                     if (!first) sb.Append(',');
                     first = false;
                     sb.Append("{\"id\":\"mobs\",\"name\":\"Mobs (" + mobDistinct + ")\",\"guild\":\"\"")
-                      .Append(",\"damage\":").Append(mobDmg)
+                      .Append(",\"damage\":").Append(mergedMobDmg)
                       .Append(",\"received\":0,\"healingDone\":null,\"healingRecv\":null,\"healingRecvEffective\":false,\"dps\":0")
-                      .Append(",\"hits\":").Append(mobHits)
-                      .Append(",\"max\":").Append(mobMax)
+                      .Append(",\"hits\":").Append(mergedMobHits)
+                      .Append(",\"max\":").Append(mergedMobMax)
                       .Append(",\"classId\":0,\"classIconFile\":\"\",\"participant\":true,\"rosterActive\":").Append(hasRoster ? "true" : "false").Append(",\"unresolved\":true}");
                 }
-                if (hitsUnresolved > 0)
+                long mergedUnrDmg = dmgUnresolved + _accumDmgUnresolved;
+                int mergedUnrHits = hitsUnresolved + _accumHitsUnresolved;
+                uint mergedUnrMax = Math.Max(maxUnresolved, _accumMaxUnresolved);
+                if (mergedUnrHits > 0)
                 {
                     if (!first) sb.Append(',');
                     sb.Append("{\"id\":\"unresolved\",\"name\":\"? Unresolved\",\"guild\":\"\"")
-                      .Append(",\"damage\":").Append(dmgUnresolved)
+                      .Append(",\"damage\":").Append(mergedUnrDmg)
                       .Append(",\"received\":0,\"healingDone\":null,\"healingRecv\":null,\"healingRecvEffective\":false,\"dps\":0")
-                      .Append(",\"hits\":").Append(hitsUnresolved)
-                      .Append(",\"max\":").Append(maxUnresolved)
+                      .Append(",\"hits\":").Append(mergedUnrHits)
+                      .Append(",\"max\":").Append(mergedUnrMax)
                       .Append(",\"classId\":0,\"classIconFile\":\"\",\"participant\":true,\"rosterActive\":").Append(hasRoster ? "true" : "false").Append(",\"unresolved\":true}");
                 }
                 sb.Append(']');
@@ -1679,6 +1782,25 @@ namespace WSEngine
                         _webHost.PushArea(cntPlayers, cntPets, cntMobs, cntOther, cntPlayersRaw);
                     }
                 }
+                // --- Rotation check ---
+                // Pcap passou threshold? Absorve agregados cur → _accum e rotaciona dumpcap
+                // (novo arquivo, cur zera, agregados persistem via _accum). Cooldown 30s
+                // evita rotações consecutivas em caso de burst de tráfego anormal.
+                try
+                {
+                    long fsLen = new FileInfo(path).Length;
+                    if (fsLen > RotationThresholdBytes
+                        && (DateTime.UtcNow - _lastRotationAt).TotalSeconds > 30
+                        && !_rotatingCapture
+                        && !_userStoppedCapture)
+                    {
+                        AbsorbIntoAccum(perAttacker, healBySrc, healByTgt, perTargetReceivedLocal,
+                                        perAttackerByRank, healRecvEffective,
+                                        dmgUnresolved, hitsUnresolved, maxUnresolved, fightSec);
+                        RotateCapture(fsLen);
+                    }
+                }
+                catch { }
             }
             catch (IOException) { /* file locked mid-write */ }
             catch (Exception ex)
@@ -1686,6 +1808,89 @@ namespace WSEngine
                 if (_webHost != null && _webHost.IsReady)
                     _webHost.PushStatus("[ao vivo] erro: " + ex.Message);
             }
+        }
+
+        void AbsorbIntoAccum(
+            Dictionary<uint, List<int>> perAttacker,
+            Dictionary<uint, long> healBySrc,
+            Dictionary<uint, long> healByTgt,
+            Dictionary<uint, long> received,
+            Dictionary<uint, Dictionary<string, long>> perAttackerByRank,
+            Dictionary<uint, long> healRecvEff,
+            long dmgUnresolved, int hitsUnresolved, uint maxUnresolved,
+            double fightSec)
+        {
+            foreach (var kv in perAttacker)
+            {
+                long sum = 0; uint mx = 0;
+                var hh = kv.Value;
+                for (int i = 0; i < hh.Count; i++) { sum += hh[i]; if ((uint)hh[i] > mx) mx = (uint)hh[i]; }
+                long aSum; _accumAttackerSum.TryGetValue(kv.Key, out aSum);
+                _accumAttackerSum[kv.Key] = aSum + sum;
+                int aCnt; _accumAttackerCount.TryGetValue(kv.Key, out aCnt);
+                _accumAttackerCount[kv.Key] = aCnt + hh.Count;
+                uint aMax; _accumAttackerMax.TryGetValue(kv.Key, out aMax);
+                if (mx > aMax) _accumAttackerMax[kv.Key] = mx;
+            }
+            foreach (var kv in healBySrc)
+            {
+                long a; _accumHealSrc.TryGetValue(kv.Key, out a);
+                _accumHealSrc[kv.Key] = a + kv.Value;
+            }
+            foreach (var kv in healByTgt)
+            {
+                long a; _accumHealTgt.TryGetValue(kv.Key, out a);
+                _accumHealTgt[kv.Key] = a + kv.Value;
+            }
+            foreach (var kv in received)
+            {
+                long a; _accumReceived.TryGetValue(kv.Key, out a);
+                _accumReceived[kv.Key] = a + kv.Value;
+            }
+            foreach (var kv in perAttackerByRank)
+            {
+                Dictionary<string, long> aRank;
+                if (!_accumAttackerByRank.TryGetValue(kv.Key, out aRank))
+                {
+                    aRank = new Dictionary<string, long>();
+                    _accumAttackerByRank[kv.Key] = aRank;
+                }
+                foreach (var rk in kv.Value)
+                {
+                    long rv; aRank.TryGetValue(rk.Key, out rv);
+                    aRank[rk.Key] = rv + rk.Value;
+                }
+            }
+            // healRecvEffective: tag=554 reporta cumulativo da sessão — guarda o maior
+            // visto (não soma, pq o scoreboard do server já é acumulado).
+            foreach (var kv in healRecvEff)
+            {
+                long a; _accumHealEff.TryGetValue(kv.Key, out a);
+                if (kv.Value > a) _accumHealEff[kv.Key] = kv.Value;
+            }
+            _accumDmgUnresolved += dmgUnresolved;
+            _accumHitsUnresolved += hitsUnresolved;
+            if (maxUnresolved > _accumMaxUnresolved) _accumMaxUnresolved = maxUnresolved;
+            _accumFightSec += fightSec;
+        }
+
+        void RotateCapture(long oldFileLen)
+        {
+            _rotatingCapture = true;
+            _rotationCount++;
+            _lastRotationAt = DateTime.UtcNow;
+            AppendLog(string.Format("[rotate] pcap atingiu {0}MB — absorvi agregados, rotacionando dumpcap (rot #{1})",
+                oldFileLen / (1024 * 1024), _rotationCount));
+            try { StopCapture(); } catch { }
+            // Pequeno delay via Timer pra dumpcap encerrar antes de reiniciar.
+            var t = new Timer { Interval = 400 };
+            t.Tick += (s, ev) =>
+            {
+                t.Stop(); t.Dispose();
+                _rotatingCapture = false;
+                if (!_userStoppedCapture) StartCapture();
+            };
+            t.Start();
         }
 
         static string JsonEsc(string s)
@@ -2665,6 +2870,19 @@ namespace WSEngine
             if (events.Count > 0) latestKnown = Math.Max(latestKnown, events[events.Count - 1].Time);
             resetAtTime = Math.Max(wallNow, latestKnown) + 0.5;  // half-second grace to absorb late-arriving packets from before click
             _healValidationLogged = false;
+            // Zera também acumuladores de rotação — reset é "do zero".
+            _accumAttackerSum.Clear();
+            _accumAttackerCount.Clear();
+            _accumAttackerMax.Clear();
+            _accumHealSrc.Clear();
+            _accumHealTgt.Clear();
+            _accumHealEff.Clear();
+            _accumReceived.Clear();
+            _accumAttackerByRank.Clear();
+            _accumDmgUnresolved = 0;
+            _accumHitsUnresolved = 0;
+            _accumMaxUnresolved = 0;
+            _accumFightSec = 0;
             AppendLog("Damage counter reset (threshold " + resetAtTime.ToString("0.000") + "s).");
         }
 
@@ -3778,7 +3996,11 @@ namespace WSEngine
                     // Watchdog: if Warspear is still running and dumpcap died unexpectedly,
                     // restart capture. Cap at 3 restarts inside 30s to avoid tight loops.
                     // Skip entirely if the user manually stopped capture.
-                    if (_userStoppedCapture)
+                    if (_rotatingCapture)
+                    {
+                        AppendLog("[watchdog] dumpcap saiu durante rotação — restart é delegado ao RotateCapture.");
+                    }
+                    else if (_userStoppedCapture)
                     {
                         AppendLog("[watchdog] dumpcap saiu; captura ficou parada por escolha do usuário — sem religar.");
                     }

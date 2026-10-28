@@ -2,6 +2,13 @@
 
 // ---------- Class colors ----------
 var CLASS_COLORS = (window.CLASS_COLORS || {});
+var CLASS_NAMES = {
+    1: 'Paladino',       2: 'Sacerdote',   3: 'Mago',          4: 'Bárbaro',
+    5: 'Ladino',         6: 'Xamã',        7: 'Dançarino',     8: 'Patrulheiro',
+    9: 'Druida',        10: 'Cav. Morte', 11: 'Necromante',   12: 'Bruxo',
+    13: 'Explorador',   14: 'Caçador',    15: 'Guarda',       16: 'Encantador',
+    17: 'Templário',    18: 'Cacique',    19: 'Inv. Feras',   20: 'Ceifeiro'
+};
 var REDUCE_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ---------- IPC ----------
@@ -647,19 +654,71 @@ function copyTopToClipboard(mode) {
     var valueOf = function (r) {
         return mode === 'raid' ? (r.damageRaid || 0) : (r.damage || 0);
     };
-    var header = mode === 'raid' ? 'TOP DANO EM BOSS RAID' : 'TOP DANO GERAL';
-    // Re-sort by mode value (backend sorts por damage total)
     var sorted = lastParticipants.slice().sort(function (a, b) { return valueOf(b) - valueOf(a); });
-    var parts = [];
-    for (var i = 0; i < sorted.length; i++) {
-        var r = sorted[i];
-        var v = valueOf(r);
-        if (v <= 0) continue;
-        parts.push((parts.length + 1) + '- ' + r.name + ' ' + fmtDmgShort(v));
+    var text;
+    var copiedCount;
+    if (mode === 'raid') {
+        var ranked = [];
+        for (var i = 0; i < sorted.length; i++) {
+            var r = sorted[i];
+            var v = valueOf(r);
+            if (v <= 0) continue;
+            ranked.push(r);
+        }
+        if (ranked.length === 0) { setStatus('Nada para copiar (raid).'); return; }
+        var lines = ['TOP DANO EM BOSS RAID', ''];
+        lines.push('TOP 10 GERAL');
+        var top10 = ranked.slice(0, 10);
+        for (var j = 0; j < top10.length; j++) {
+            lines.push((j + 1) + '- ' + top10[j].name + ' ' + fmtDmgShort(valueOf(top10[j])));
+        }
+        // Agrupa por classe. Jogadores sem classe resolvida (classId<=0) ficam
+        // fora do bloco "TOP 5 POR CLASSE" — usuário pediu só mostrar classes
+        // conhecidas, nada de "Sem classe".
+        var byClass = {};
+        for (var k = 0; k < ranked.length; k++) {
+            var rr = ranked[k];
+            if (!rr.classId || rr.classId <= 0) continue;
+            var cid = rr.classId;
+            if (!byClass[cid]) byClass[cid] = [];
+            byClass[cid].push(rr);
+        }
+        // Ordena classes por dano total descendente
+        var classIds = Object.keys(byClass).map(function (x) { return parseInt(x, 10); });
+        classIds.sort(function (a, b) {
+            var sa = 0, sb = 0;
+            for (var ii = 0; ii < byClass[a].length; ii++) sa += valueOf(byClass[a][ii]);
+            for (var jj = 0; jj < byClass[b].length; jj++) sb += valueOf(byClass[b][jj]);
+            return sb - sa;
+        });
+        lines.push('');
+        lines.push('TOP 5 POR CLASSE');
+        for (var ci = 0; ci < classIds.length; ci++) {
+            var cId = classIds[ci];
+            var cname = CLASS_NAMES[cId] || ('Classe ' + cId);
+            var members = byClass[cId].slice(0, 5);
+            lines.push('');
+            lines.push(cname);
+            for (var mi = 0; mi < members.length; mi++) {
+                lines.push((mi + 1) + '- ' + members[mi].name + ' ' + fmtDmgShort(valueOf(members[mi])));
+            }
+        }
+        text = lines.join('\n');
+        copiedCount = ranked.length;
+    } else {
+        var header = 'TOP DANO GERAL';
+        var parts = [];
+        for (var p = 0; p < sorted.length; p++) {
+            var rp = sorted[p];
+            var vp = valueOf(rp);
+            if (vp <= 0) continue;
+            parts.push((parts.length + 1) + '- ' + rp.name + ' ' + fmtDmgShort(vp));
+        }
+        if (parts.length === 0) { setStatus('Nada para copiar (all).'); return; }
+        text = header + '\n' + parts.join('\n');
+        copiedCount = parts.length;
     }
-    if (parts.length === 0) { setStatus('Nada para copiar (' + mode + ').'); return; }
-    var text = header + '\n' + parts.join('\n');
-    var done = function () { setStatus('Top copiado — ' + mode + ' (' + parts.length + ' jogadores).'); };
+    var done = function () { setStatus('Top copiado — ' + mode + ' (' + copiedCount + ' jogadores).'); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
     } else {

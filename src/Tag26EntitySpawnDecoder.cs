@@ -43,7 +43,12 @@ namespace WSEngine
     public static class Tag26EntitySpawnDecoder
     {
         const int Tag = 26;
-        const int BodyLen = 41;
+        // [MEDIDO 2026-10-26 — pós patch Warspear] body cresceu 41 → 46 bytes.
+        // Novo layout mantém max_hp u32 em offset 14, owner_id u32 em offset 35.
+        // Adiciona cur_hp u32 em offset 18 + const field expandido (0x0064 twice).
+        // Aceita ambos pra permitir replay de pcaps legados.
+        const int BodyLenOld = 41;
+        const int BodyLenNew = 46;
 
         // HP thresholds — ver spec no cabeçalho.
         public const int HpRaid  = 800000;
@@ -74,7 +79,7 @@ namespace WSEngine
                 var m = messages[i];
                 if (m == null || m.Body == null) continue;
 
-                if (m.Tag == Tag && m.Body.Length == BodyLen)
+                if (m.Tag == Tag && (m.Body.Length == BodyLenOld || m.Body.Length == BodyLenNew))
                 {
                     Handle(m.Body, m.Time - captureStartTime, map);
                     continue;
@@ -89,7 +94,7 @@ namespace WSEngine
                     foreach (var im in inner.Messages)
                     {
                         if (im == null || im.Body == null) continue;
-                        if (im.Tag == Tag && im.Body.Length == BodyLen)
+                        if (im.Tag == Tag && (im.Body.Length == BodyLenOld || im.Body.Length == BodyLenNew))
                             Handle(im.Body, m.Time - captureStartTime, map);
                     }
                 }
