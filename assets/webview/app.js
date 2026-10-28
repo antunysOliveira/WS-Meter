@@ -644,6 +644,22 @@ function fmtDmgShort(n) {
     if (n < 1000000) return Math.round(n / 1000) + 'k';
     return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
 }
+// Formato PT-BR: 1234567 → "1.234.567" (int) ou "1.234.567,89" (decimal).
+function fmtNumPt(n, decimals) {
+    if (n === null || n === undefined || isNaN(n)) return '0';
+    var d = decimals || 0;
+    return Number(n).toLocaleString('pt-BR', {
+        minimumFractionDigits: d,
+        maximumFractionDigits: d
+    });
+}
+// 1234567 → "1,23M" / 12345 → "12,3k" / 123 → "123"  (sempre com vírgula PT-BR).
+function fmtDmgCompactPt(n) {
+    if (!n || n <= 0) return '0';
+    if (n < 1000) return String(Math.round(n));
+    if (n < 1000000) return (n / 1000).toFixed(1).replace(/\.0$/, '').replace('.', ',') + 'k';
+    return (n / 1000000).toFixed(2).replace(/,?00$/, '').replace(/\.0$/, '').replace('.', ',') + 'M';
+}
 // mode: 'all' (dano geral) | 'raid' (dano só em boss raid)
 function copyTopToClipboard(mode) {
     mode = mode || 'all';
@@ -666,15 +682,16 @@ function copyTopToClipboard(mode) {
             ranked.push(r);
         }
         if (ranked.length === 0) { setStatus('Nada para copiar (raid).'); return; }
-        var lines = ['TOP DANO EM BOSS RAID', ''];
-        lines.push('TOP 10 GERAL');
+        var lines = [];
+        // ===== BLOCO 1: TOP DANO EM BOSS RAID =====
+        lines.push('TOP DANO EM BOSS RAID');
+        lines.push('');
+        lines.push('TOP 10 EM BOSS');
         var top10 = ranked.slice(0, 10);
         for (var j = 0; j < top10.length; j++) {
             lines.push((j + 1) + '- ' + top10[j].name + ' ' + fmtDmgShort(valueOf(top10[j])));
         }
-        // Agrupa por classe. Jogadores sem classe resolvida (classId<=0) ficam
-        // fora do bloco "TOP 5 POR CLASSE" — usuário pediu só mostrar classes
-        // conhecidas, nada de "Sem classe".
+        // Agrupa por classe (dano em boss raid)
         var byClass = {};
         for (var k = 0; k < ranked.length; k++) {
             var rr = ranked[k];
@@ -683,7 +700,6 @@ function copyTopToClipboard(mode) {
             if (!byClass[cid]) byClass[cid] = [];
             byClass[cid].push(rr);
         }
-        // Ordena classes por dano total descendente
         var classIds = Object.keys(byClass).map(function (x) { return parseInt(x, 10); });
         classIds.sort(function (a, b) {
             var sa = 0, sb = 0;
@@ -692,7 +708,7 @@ function copyTopToClipboard(mode) {
             return sb - sa;
         });
         lines.push('');
-        lines.push('TOP 5 POR CLASSE');
+        lines.push('TOP 5 POR CLASSE (dano em boss)');
         for (var ci = 0; ci < classIds.length; ci++) {
             var cId = classIds[ci];
             var cname = CLASS_NAMES[cId] || ('Classe ' + cId);
@@ -703,6 +719,110 @@ function copyTopToClipboard(mode) {
                 lines.push((mi + 1) + '- ' + members[mi].name + ' ' + fmtDmgShort(valueOf(members[mi])));
             }
         }
+
+        // ===== BLOCO 2: DANO GERAL (todos os alvos, não só boss) =====
+        var geralRanked = lastParticipants.slice()
+            .filter(function (p) { return (p.damage || 0) > 0; })
+            .sort(function (a, b) { return (b.damage || 0) - (a.damage || 0); });
+        if (geralRanked.length > 0) {
+            lines.push('');
+            lines.push('____');
+            lines.push('');
+            lines.push('TOP DANO GERAL');
+            for (var g = 0; g < geralRanked.length; g++) {
+                lines.push((g + 1) + '- ' + geralRanked[g].name + ' ' + fmtDmgShort(geralRanked[g].damage));
+            }
+        }
+
+        // ===== BLOCO 3: CURA POR CLASSE =====
+        // Agrupa jogadores com healingDone > 0 por classe. Mostra DPS + Cura.
+        var healByClass = {};
+        for (var h = 0; h < lastParticipants.length; h++) {
+            var pH = lastParticipants[h];
+            if (!pH.healingDone || pH.healingDone <= 0) continue;
+            if (!pH.classId || pH.classId <= 0) continue;
+            var hcid = pH.classId;
+            if (!healByClass[hcid]) healByClass[hcid] = [];
+            healByClass[hcid].push(pH);
+        }
+        var healClassIds = Object.keys(healByClass).map(function (x) { return parseInt(x, 10); });
+        healClassIds.sort(function (a, b) {
+            var sa = 0, sb = 0;
+            for (var ia = 0; ia < healByClass[a].length; ia++) sa += (healByClass[a][ia].healingDone || 0);
+            for (var ib = 0; ib < healByClass[b].length; ib++) sb += (healByClass[b][ib].healingDone || 0);
+            return sb - sa;
+        });
+        if (healClassIds.length > 0) {
+            lines.push('');
+            lines.push('____');
+            lines.push('');
+            lines.push('💚 Cura por classe');
+            for (var hci = 0; hci < healClassIds.length; hci++) {
+                var hcId = healClassIds[hci];
+                var hcname = CLASS_NAMES[hcId] || ('Classe ' + hcId);
+                var hmembers = healByClass[hcId].slice().sort(function (a, b) { return (b.healingDone || 0) - (a.healingDone || 0); });
+                lines.push('');
+                lines.push(hcname + ':');
+                for (var hmi = 0; hmi < hmembers.length; hmi++) {
+                    var hp = hmembers[hmi];
+                    lines.push('· ' + hp.name + ' — DPS ' + fmtNumPt(hp.dps || 0, 2) + ' | Cura ' + fmtNumPt(hp.healingDone, 0));
+                }
+            }
+        }
+
+        // ===== BLOCO 4: DANO RECEBIDO POR CLASSE =====
+        var recvByClass = {};
+        for (var rr2 = 0; rr2 < lastParticipants.length; rr2++) {
+            var pR = lastParticipants[rr2];
+            if (!pR.received || pR.received <= 0) continue;
+            if (!pR.classId || pR.classId <= 0) continue;
+            var rcid = pR.classId;
+            if (!recvByClass[rcid]) recvByClass[rcid] = [];
+            recvByClass[rcid].push(pR);
+        }
+        var recvClassIds = Object.keys(recvByClass).map(function (x) { return parseInt(x, 10); });
+        recvClassIds.sort(function (a, b) {
+            var sa = 0, sb = 0;
+            for (var ia2 = 0; ia2 < recvByClass[a].length; ia2++) sa += (recvByClass[a][ia2].received || 0);
+            for (var ib2 = 0; ib2 < recvByClass[b].length; ib2++) sb += (recvByClass[b][ib2].received || 0);
+            return sb - sa;
+        });
+        if (recvClassIds.length > 0) {
+            lines.push('');
+            lines.push('____');
+            lines.push('');
+            lines.push('🛡️ Dano Recebido por classe');
+            for (var rci = 0; rci < recvClassIds.length; rci++) {
+                var rcId = recvClassIds[rci];
+                var rcname = CLASS_NAMES[rcId] || ('Classe ' + rcId);
+                var rmembers = recvByClass[rcId].slice().sort(function (a, b) { return (b.received || 0) - (a.received || 0); });
+                lines.push('');
+                lines.push(rcname + ':');
+                for (var rmi = 0; rmi < rmembers.length; rmi++) {
+                    var rp = rmembers[rmi];
+                    lines.push('· ' + rp.name + ' — ' + fmtNumPt(rp.received, 0));
+                }
+            }
+        }
+
+        // ===== BLOCO 5: RESUMO RÁPIDO =====
+        var maiorDmg = null, maiorCura = null, maiorMaso = null;
+        for (var s2 = 0; s2 < lastParticipants.length; s2++) {
+            var ps = lastParticipants[s2];
+            if ((ps.damage || 0) > 0 && (!maiorDmg || ps.damage > maiorDmg.damage)) maiorDmg = ps;
+            if ((ps.healingDone || 0) > 0 && (!maiorCura || ps.healingDone > maiorCura.healingDone)) maiorCura = ps;
+            if ((ps.received || 0) > 0 && (!maiorMaso || ps.received > maiorMaso.received)) maiorMaso = ps;
+        }
+        if (maiorDmg || maiorCura || maiorMaso) {
+            lines.push('');
+            lines.push('____');
+            lines.push('');
+            lines.push('Resumo rápido:');
+            if (maiorDmg) lines.push('🥇 Maior dano geral: ' + maiorDmg.name + ': ' + fmtDmgCompactPt(maiorDmg.damage));
+            if (maiorCura) lines.push('💚 Maior cura: ' + maiorCura.name);
+            if (maiorMaso) lines.push('🛡️ Maior Masoquista: ' + maiorMaso.name);
+        }
+
         text = lines.join('\n');
         copiedCount = ranked.length;
     } else {
